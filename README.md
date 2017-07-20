@@ -57,6 +57,7 @@ This will return three files, the decoded.Summary.txt, decoded.All_posterior_pro
 The first few lines in decoded.Summary.txt are shown below:
 
 ```
+name	start	end	length	state	snps
 observations.txt	1	285	285	Human	5
 observations.txt	286	300	15	Archaic	2
 observations.txt	301	699	399	Human	8
@@ -66,7 +67,6 @@ observations.txt	1813	1843	31	Archaic	10
 observations.txt	1844	3190	1347	Human	28
 observations.txt	3191	3385	195	Archaic	26
 observations.txt	3386	5416	2031	Human	36
-observations.txt	5417	5457	41	Archaic	7
 ```
 
 
