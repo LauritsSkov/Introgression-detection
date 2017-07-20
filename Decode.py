@@ -1,14 +1,14 @@
 from templates import *
 
 # Parameters (path to observations file, output file, model, weights file)
-_, infile, outprefix, model, weights_file = sys.argv
+_, infile, outprefix, model, weights_file, mutfile = sys.argv
 
 # Load data
-state_names, transitions, emissions, starting_probabilities, weights = make_hmm_from_file(model, weights_file) 
+state_names, transitions, emissions, starting_probabilities, weights, mutrates = make_hmm_from_file(model, weights_file, mutfile) 
 obs = read_observations_from_file(infile)
 
 # Posterior decode the file
-post_seq = Posterior_decoding(starting_probabilities, transitions, emissions, weights, obs)
+post_seq = Posterior_decoding(starting_probabilities, transitions, emissions, weights, obs, mutrates)
 
 with open(outprefix + '.All_posterior_probs.txt','w') as posterior_sequence, open(outprefix + '.mostLikely_probs.txt','w') as posterior_sequence_mostlikely, open(outprefix + '.Summary.txt','w') as summary: 
     
