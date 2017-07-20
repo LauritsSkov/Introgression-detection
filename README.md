@@ -9,6 +9,17 @@ python version 2.7.12
 numpy  version 1.11.1
 ```
 
+## Running the scripts
+
+How to train the model
+```
+python Train.py <path to observations file> <output_prefix> <path to markov model> <path to callability file> <path to mutation rate file>
+```
+
+How to decode the model
+```
+python Decode.py <path to observations file> <output_prefix> <path to markov model> <path to callability file> <path to mutation rate file>
+```
 
 
 ## Test data
