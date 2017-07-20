@@ -13,12 +13,15 @@ post_seq = Posterior_decoding(starting_probabilities, transitions, emissions, we
 with open(outprefix + '.All_posterior_probs.txt','w') as posterior_sequence, open(outprefix + '.mostLikely_probs.txt','w') as posterior_sequence_mostlikely, open(outprefix + '.Summary.txt','w') as summary: 
     
     previos_seg = ''
-    previos_chrom = ''
-    previos_state = ''
-
     counter = 1
     start = 1
     snp_counter = 0
+
+    # Make headers
+    summary.write('name\tstart\tend\tlength\tstate\tsnps\n')
+    posterior_sequence.write('observations\t{}\n'.format('\t'.join(state_names)))
+    posterior_sequence_mostlikely.write('observations\tstate\n')
+
 
 
     for i, (x,v) in enumerate(zip(obs, post_seq)):
@@ -40,14 +43,11 @@ with open(outprefix + '.All_posterior_probs.txt','w') as posterior_sequence, ope
 
             # Begin new block
             if current_seg != previos_seg:
-
-
                 summary.write('{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n'.format(infile, start, i, counter, previos_seg, snp_counter)) 
                 
                 counter = 1
                 start = i + 1
                 snp_counter = int(snps)
-
 
         previos_seg = current_seg
 
