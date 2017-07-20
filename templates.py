@@ -43,7 +43,7 @@ def log_with_inf_array(matrix):
 
 
 
-def make_hmm_from_file(markov_param, weights_file):
+def make_hmm_from_file(markov_param, weights_file, mut_file):
     
     with open(markov_param) as data:
         for line in data:
@@ -55,6 +55,13 @@ def make_hmm_from_file(markov_param, weights_file):
         for line in data:
             weights.append(float(line.strip()))
 
+
+     # Load mutation rate file
+    mutrates = []
+    with open(mut_file) as data:
+        for line in data:
+            mutrates.append(float(line.strip()))
+
     # Log transform the transitions
     for i, row in enumerate(transitions):
         for j, col in enumerate(row):
@@ -65,7 +72,7 @@ def make_hmm_from_file(markov_param, weights_file):
         starting_probabilities[i] = log_with_inf(start_prob)
 
 
-    return (states, np.array(transitions), emissions, starting_probabilities, weights)
+    return (states, np.array(transitions), emissions, starting_probabilities, weights, mutrates)
 
 def read_observations_from_file(f):
 	obs = []
@@ -77,7 +84,7 @@ def read_observations_from_file(f):
 
 
 
-def GET_forward_prob(init_start, transitions, emissions, weights, observations):
+def GET_forward_prob(init_start, transitions, emissions, weights, observations, mutrates):
     """
     Returns the probability of seeing the given `observations` sequence,
     using the Forward algorithm.
@@ -114,9 +121,9 @@ def GET_forward_prob(init_start, transitions, emissions, weights, observations):
         for state in state_nums:            
 
             to_add = np.zeros(len(state_nums))
-            calculate_poisson = - emissions[state] * weights[t] - fractorials[observations[t]] 
+            calculate_poisson = - emissions[state] * weights[t] * mutrates[t] - fractorials[observations[t]] 
             if observations[t] != 0:                
-                calculate_poisson += log_with_inf(emissions[state] * weights[t])*observations[t]
+                calculate_poisson += log_with_inf(emissions[state] * weights[t] * mutrates[t])*observations[t]
 
             for i,old_state in enumerate(state_nums):
                 to_add[i] = transitions[old_state][state] + calculate_poisson + forwards[old_state][t-1]
@@ -136,7 +143,7 @@ def GET_forward_prob(init_start, transitions, emissions, weights, observations):
 
     return (final, forwards)
 
-def GET_backward_prob(init_start, transitions, emissions, weights, observations):
+def GET_backward_prob(init_start, transitions, emissions, weights, observations, mutrates):
     """
     Returns the probability of seeing the given `observations` sequence,
     using the Backward algorithm.
@@ -170,9 +177,9 @@ def GET_backward_prob(init_start, transitions, emissions, weights, observations)
             to_add = np.zeros(len(state_nums))
 
             for i,next_state in enumerate(state_nums):
-                calculate_poisson = - emissions[next_state] * weights[t] - fractorials[observations[t]] 
+                calculate_poisson = - emissions[next_state] * weights[t] * mutrates[t] - fractorials[observations[t]] 
                 if observations[t] != 0:
-                    calculate_poisson += log_with_inf(emissions[next_state] * weights[t])*observations[t]
+                    calculate_poisson += log_with_inf(emissions[next_state] * weights[t] * mutrates[t])*observations[t]
 
                 to_add[i] = transitions[state, next_state] + calculate_poisson + backwards[next_state][t] 
   
@@ -196,13 +203,13 @@ def GET_backward_prob(init_start, transitions, emissions, weights, observations)
 
 
 
-def Posterior_decoding(init_start, transitions, emissions, weights, observations):
+def Posterior_decoding(init_start, transitions, emissions, weights, observations, mutrates):
     """
     Posterior decoding, using the forward-backward algorithm. 
     """
     number_observations = len(observations)
-    forward_prob,  forwards  = GET_forward_prob(init_start, transitions, emissions, weights, observations)
-    backward_prob, backwards = GET_backward_prob(init_start, transitions, emissions, weights, observations)
+    forward_prob,  forwards  = GET_forward_prob(init_start, transitions, emissions, weights, observations, mutrates)
+    backward_prob, backwards = GET_backward_prob(init_start, transitions, emissions, weights, observations, mutrates)
     state_nums = range(len(init_start))
 
     results = []
@@ -216,7 +223,8 @@ def Posterior_decoding(init_start, transitions, emissions, weights, observations
 
 
 
-def train_on_obs_pure_baum(init_start, transitions, emissions, weights, observations):
+
+def train_on_obs_pure_baum(init_start, transitions, emissions, weights, observations, mutrates):
     """
     Trains the model once, using the forward-backward algorithm. 
     """
@@ -237,8 +245,8 @@ def train_on_obs_pure_baum(init_start, transitions, emissions, weights, observat
         fractorials[i] = frac_sum 
 
     number_observations = len(observations)
-    forward_prob,  forwards  = GET_forward_prob(init_start, transitions, emissions, weights, observations)
-    backward_prob, backwards = GET_backward_prob(init_start, transitions, emissions, weights, observations)
+    forward_prob,  forwards  = GET_forward_prob(init_start, transitions, emissions, weights, observations, mutrates)
+    backward_prob, backwards = GET_backward_prob(init_start, transitions, emissions, weights, observations, mutrates)
 
 
     state_nums = range(len(init_start))
@@ -256,10 +264,10 @@ def train_on_obs_pure_baum(init_start, transitions, emissions, weights, observat
 
             for t in range(number_observations-1):
 
-                calculate_poisson = - emissions[state2] * weights[t+1] - fractorials[observations[t+1]] 
+                calculate_poisson = - emissions[state2] * weights[t+1] * mutrates[t+1] - fractorials[observations[t+1]] 
 
                 if observations[t+1] != 0:
-                    calculate_poisson += log_with_inf(emissions[state2] * weights[t+1])*observations[t+1]
+                    calculate_poisson += log_with_inf(emissions[state2] * weights[t+1] * mutrates[t+1])*observations[t+1]
 
                 pot[state1][state2][t] = forwards[state1][t]  + transitions[state1, state2] + calculate_poisson + backwards[state2][t+1] - forward_prob
 
@@ -306,7 +314,7 @@ def train_on_obs_pure_baum(init_start, transitions, emissions, weights, observat
         for t in range(number_observations):  
   
             top[t] = forwards[state][t] + backwards[state][t] + log_with_inf(observations[t])
-            bottom[t] = forwards[state][t] + backwards[state][t] + log_with_inf(weights[t]) 
+            bottom[t] = forwards[state][t] + backwards[state][t] + log_with_inf(weights[t] * mutrates[t]) 
 
         top = add_in_log_space(top)
         bottom = add_in_log_space(bottom)
