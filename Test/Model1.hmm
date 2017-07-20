@@ -1,5 +1,5 @@
 # State names (only used for decoding)
-states = ['State1','State2']
+states = ['Human','Archaic']
 
 # Initialization parameters (prob of staring in states)
 starting_probabilities = [0.99, 0.01]
