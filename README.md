@@ -23,7 +23,7 @@ python Decode.py <path to observations file> <output_prefix> <path to markov mod
 
 
 ## Test data
-In the folder Test is the files needed to run the analysis. You will need a file with observations, which is the number of private variants for each window. I have chosen a window size of 1000 bp - meaning that the first number in the file will be how many private variants that is observed in the first 1000 bp of the chromosome 17. The weights.txt files is the number of called basepairs for each window and the Mutrates.txt file is the local mutation rate in this window. If the local mutation rate or number of callable bases are now known one can create a file of the same length as the observations.txt file and fill it out with 1.0. This corresponds to having called all bases in a window and have the genome-wide average mutation rate. 
+In the folder Test is the files needed to run the analysis. You will need a file with observations, which is the number of private variants for each window. I have chosen a window size of 1000 bp - meaning that the first number in the file will be how many private variants that is observed in the first 1000 bp of the chromosome 17. The weights.txt files is the number of called basepairs for each window and the Mutrates.txt file is the local mutation rate in this window. If the local mutation rate or number of callable bases are not known one can create a mutation rate and callability file of the same length as the observations.txt file and fill it out with 1.0. This corresponds to having called all bases in a window and have the genome-wide average mutation rate. 
 
 In the .hmm file you can insert your initial guesses of coalescene time for the different states into the outgroup and the time of admixure. 
 
