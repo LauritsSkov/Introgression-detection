@@ -68,12 +68,12 @@ This will return three files, the decoded.Summary.txt, decoded.All_posterior_pro
 The first few lines in decoded.Summary.txt are shown below:
 
 ```
-name	            start	end	  length	state	snps	mean_prob
-observations.txt	1	    285	  285	Human	5	0.96009303904
-observations.txt	286	  300	  15	Archaic	2	0.518621392803
-observations.txt	301	  699	  399	Human	8	0.910527915201
-observations.txt	700	  760	  61	Archaic	28	0.809617990419
-observations.txt	761	  1812	1052	Human	18	0.993446178829
+name	start	end	length	state	snps	mean_prob
+observations.txt	1	285	285	Human	5	0.96009303904
+observations.txt	286	300	15	Archaic	2	0.518621392803
+observations.txt	301	699	399	Human	8	0.910527915201
+observations.txt	700	760	61	Archaic	28	0.809617990419
+observations.txt	761	1812	1052	Human	18	0.993446178829
 observations.txt	1813	1843	31	Archaic	10	0.953483598978
 observations.txt	1844	3190	1347	Human	28	0.986725347829
 observations.txt	3191	3385	195	Archaic	26	0.951324931506
