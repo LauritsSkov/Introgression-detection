@@ -46,7 +46,6 @@ with open(outprefix + '.All_posterior_probs.txt','w') as posterior_sequence, ope
             # Begin new block
             if current_seg != previos_seg:
 
-                print total_prob, counter
                 mean_prob = total_prob / counter
                 summary.write('{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\n'.format(infile, start, i, counter, previos_seg, snp_counter, mean_prob)) 
                 
