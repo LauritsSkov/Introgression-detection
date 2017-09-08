@@ -58,4 +58,4 @@ with open(outprefix + '.All_posterior_probs.txt','w') as posterior_sequence, ope
         previos_seg = current_seg
 
     mean_prob = total_prob / counter
-    summary.write('{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n'.format(infile, start, i+1, counter, previos_seg, snp_counter, mean_prob))       
+    summary.write('{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\n'.format(infile, start, i+1, counter, previos_seg, snp_counter, mean_prob))       
