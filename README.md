@@ -41,97 +41,10 @@ http://web.corral.tacc.utexas.edu/WGSAdownload/resources/human_ancestor_GRCh37_e
 
 ```
 
-A site has to be callable in the 1000 genomes project (denoted P in the callability file) and not in a repetitive region (denoted N) in the repeatmask file. The small script below does this for chrom22:
+A site has to be callable in the 1000 genomes project (denoted P in the callability file) and not in a repetitive region (denoted N) in the repeatmask file. The small script below does this for chromosome 22:
 
-```python
-
-import gzip
-from collections import defaultdict
-
-
-def readFasta(infile):
-	sequence = ''
-	if '.gz' in infile:
-		with gzip.open(infile) as data:
-			for line in data:
-				if '>' in line:
-					seqname = line.strip().replace('>','')
-				else:
-					sequence += line.strip().replace(' ','')
-
-	else:
-		with open(infile) as data:
-			for line in data:
-				if '>' in line:
-					seqname = line.strip().replace('>','')
-				else:
-					sequence += line.strip().replace(' ','')
-
-	return sequence
-
-# change here for your own files
-repeatmask_file = 'chr22.fa.masked'
-callable_mask_file = '20140520.chr22.strict_mask.fasta.gz'
-chrom = '22'
-outprefix = 'chr22'
-window_size = 1000
-
-
-bases_called = 0
-
-# Mask file for repetitative regions
-repeatmask = readFasta(repeatmask_file)
-callable_mask = readFasta(callable_mask_file)
-
-with open(outprefix + '.bed','w') as outbed, open (outprefix + '.txt','w') as out:
-	d = defaultdict(int)
-
-	prev_base = 'Notcalled'
-	start = 0
-
-	for i in range(len(callable_mask)): 
-
-		repeat_base = repeatmask[i]
-		callable_base = callable_mask[i]
-
-
-		# Round down to nearest window start
-		window = i - i%window_size
-		d[window] += 0
-			
-		if repeat_base != 'N' and callable_base == 'P':
-
-			current_base = 'Called'
-			d[window] += 1
-		else:
-			current_base = 'Notcalled'
-
-
-		# extend
-		if current_base == prev_base:
-			end = i
-
-		# Make a new one
-		if current_base != prev_base:
-			if prev_base == 'Called':
-				outbed.write('{}\t{}\t{}\t{}\n'.format(chrom, start, end, prev_base)) 
-
-			start = i 
-			end = i 
-
-		prev_base = current_base
-
-	if prev_base == 'Called':
-		outbed.write('{}\t{}\t{}\t{}\n'.format(chrom, start, end, prev_base)) 
-
-
-	# Write output files
-	for window in range(0, max(d)+window_size, window_size):
-		out.write('{}\t{}\t{}\n'.format(chrom, window, d[window] / float(window_size)))
-
-
-
-
+```
+python MakeMask.py chr22.fa.masked 20140520.chr22.strict_mask.fasta.gz 1000 22 chr22
 ```
 
 
