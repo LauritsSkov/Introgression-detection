@@ -13,12 +13,12 @@ numpy  version 1.11.1
 
 How to train the model
 ```
-python Train.py <path to observations file> <output_prefix> <path to markov model> <path to callability file> <path to mutation rate file>
+python Train.py {observationfile} {output_prefix} {parameterfile} {weightfile} {mutationratefile}
 ```
 
 How to decode the model
 ```
-python Decode.py <path to observations file> <output_prefix> <path to markov model> <path to callability file> <path to mutation rate file>
+python Decode.py {observationfile} {output_prefix} {parameterfile} {weightfile} {mutationratefile}
 ```
 
 
@@ -41,27 +41,49 @@ http://web.corral.tacc.utexas.edu/WGSAdownload/resources/human_ancestor_GRCh37_e
 
 ```
 
-A site has to be callable in the 1000 genomes project (denoted P in the callability file) and not in a repetitive region (denoted N) in the repeatmask file. The small script below does this for chromosome 22:
+A site has to be callable in the 1000 genomes project (denoted P in the callability file) and not in a repetitive region (denoted N) in the repeatmask file. The small script below does this for chromosome 17:
 
 ```
 python MakeMask.py {repeatmaskfile} {callabilityfile} {windowsize} {chromosomename} {outprefix}
 
-So for chromosome 22
-python MakeMask.py chr22.fa.masked 20140520.chr22.strict_mask.fasta.gz 1000 22 chr22
+So for chromosome 17
+python MakeMask.py chr17.fa.masked 20140520.chr17.strict_mask.fasta.gz 1000 17 chr17
 ```
-This will generate two files. One is chr22.txt which reports the fraction of called bases for each window and chr22.bed which is a bedfile of all the callable regions.
 
-
-```
->head chr22.txt
+This will generate two files. One is chr17.txt which reports the fraction of called bases for each window and chr17.bed which is a bedfile of all the callable regions. You can see the first 10 lines of each file below. Notice how there was 68 (67 from 416 to 482 and 1 from 864 to 864) bases called between position 0 and position 1000.
 
 
 ```
+head chr17.txt
+17      0       0.068
+17      1000    0.642
+17      2000    0.662
+17      3000    0.377
+17      4000    0.058
+17      5000    0.723
+17      6000    0.528
+17      7000    0.729
+17      8000    0.494
+17      9000    0.151
 
-You can do it for all chromosomes (remember to change the ) and then concatenate them using cat. 
+head chr17.bed
+17      416     482     Called
+17      864     864     Called
+17      1086    1105    Called
+17      1330    1951    Called
+17      2024    2278    Called
+17      2593    3212    Called
+17      3508    3671    Called
+17      4821    4878    Called
+17      5082    5515    Called
+17      5616    5769    Called
+```
+
+You can do it for all chromosomes (remember to change the outprefix name) and then concatenate them using cat. 
 
 ```
-cat chr*.txt > Weightsfile.txt
+cat chr*.txt > weights.txt
+cat chr*.bed > weights.bed
 ```
 
 
