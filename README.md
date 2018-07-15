@@ -86,66 +86,31 @@ cat chr*.txt > weights.txt
 cat chr*.bed > weights.bed
 ```
 
+### Which variants are found in the outgroup
 
-
-
-In the folder Test is the files needed to run the analysis. You will need a file with observations, which is the number of private variants for each window. I have chosen a window size of 1000 bp - meaning that the first number in the file will be how many private variants that is observed in the first 1000 bp of the chromosome 17. The weights.txt files is the number of called basepairs for each window and the Mutrates.txt file is the local mutation rate in this window. If the local mutation rate or number of callable bases are not known one can create a mutation rate and callability file of the same length as the observations.txt file and fill it out with 1.0. This corresponds to having called all bases in a window and have the genome-wide average mutation rate. 
-
-In the .hmm file you can insert your initial guesses of coalescene time for the different states into the outgroup and the time of admixure. 
-
-
-To train the model on data from chromosome 17 for a Papuan individual write:
+Now we can download the 1000 genomes VCF files and remove all variants found in an outgroup (this case the YRI, ESN and MSL Subsaharan-Africans).
 
 ```
-python Train.py observations.txt trained Model1.hmm weights.txt Mutrates.txt
+VCF files are in this directory
+ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/
+
+Metadata is here
+ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel
 ```
 
-This will return two files. One log file shows the emission and transition probabilities for each iteration and .hmm file is the final parameters found. This .hmm can be used for posterior decoding.
-
-The trained.hmm file should look like this:
-```
-# State names (only used for decoding)
-states = ['Human','Archaic']
-
-# Initialization parameters (prob of staring in states)
-starting_probabilities = [0.98369416906408647, 0.016305830840918301]
-
-# transition matrix
-transitions = [[0.999206173415,0.000793826585448],[0.0114703208336,0.988529679166]]
-
-# emission matrix (poisson parameter)
-emissions = [0.041525372286415022, 0.38744095667508627]
-
+The individual names in the outgroup should be in a file (could be called outgroups.txt) with one per line like shown below.
 
 ```
-
-From the emission values it can be seen that the number of snps is around 10 times higher in the archaic state compare to the human state. If one a mutation rate of 1.25E-8 and a window size of 1000 bp an emission value of 0.38 corresponds to 30,000 generation until coalescene with the outgroup (0.38/(1000*1.25E-8)). The transition probability of staying within the archaic state is 0.98 meaning that the segments are around 50 kb on average. This correspond to the admixture event happening around 2000 generations ago. 
-
-
-
-For decoding the sequence write:
-
+NA18486
+NA18488
+NA18489
+NA18498
+NA18499
+NA18501
+NA18502
+NA18504
+NA18505
 ```
-python Decode.py observations.txt decoded trained.hmm weights.txt Mutrates.txt
-```
-
-This will return three files, the decoded.Summary.txt, decoded.All_posterior_probs.txt and the decoded.mostLikely_probs.txt. The decoded.All_posterior_probs.txt will have a column with the number of private snps plus a column for each state, stating what the probability of being in this state is. The decoded.mostLikely_probs.txt has two columns: One with the number of private snps and one with the most likely state for this position. The decoded.Summary.txt has 6 columns. One with the input file name, the starting of a segment, the end of the segment, the length of the segment, the name of the segment and the number of private variants in the segment.
-
-The first few lines in decoded.Summary.txt are shown below:
-
-```
-name	start	end	length	state	snps	mean_prob
-observations.txt	1	285	285	Human	5	0.96009303904
-observations.txt	286	300	15	Archaic	2	0.518621392803
-observations.txt	301	699	399	Human	8	0.910527915201
-observations.txt	700	760	61	Archaic	28	0.809617990419
-observations.txt	761	1812	1052	Human	18	0.993446178829
-observations.txt	1813	1843	31	Archaic	10	0.953483598978
-observations.txt	1844	3190	1347	Human	28	0.986725347829
-observations.txt	3191	3385	195	Archaic	26	0.951324931506
-observations.txt	3386	5416	2031	Human	36	0.995510947589
-```
-
 
 
 
