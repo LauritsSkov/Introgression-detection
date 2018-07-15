@@ -25,9 +25,9 @@ python Decode.py <path to observations file> <output_prefix> <path to markov mod
 ## Example (from VCF file to decoded segments)
 I thought it would be nice to have an entire reproduceble example of how to use this model. From a common starting point such as a VCF file to the final output. In this example I will analyse an individual (HG00096) from the 1000 genomes project phase 3. 
 
-First you will need to know which 1) bases can be called in the genome and 2) which variants are found in the outgroup. 
+First you will need to know which 1) bases can be called in the genome and 2) which variants are found in the outgroup. So I start out by downloading the files from the following directories.
 
-1) Which bases could be called?
+### 1) Which bases could be called?
 
 ```
 Callability file (hg37 - get all the files)
@@ -36,7 +36,7 @@ ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/supporting/accessible_
 Repeatmask file (hg37 - all files in one zip)
 hgdownload.cse.ucsc.edu/goldenpath/hg19/bigZips/chromFaMasked.tar.gz
 
-Ancestral state file (hg37 alignment e71)
+Ancestral state file (hg37 alignment e71 - get all the files)
 http://web.corral.tacc.utexas.edu/WGSAdownload/resources/human_ancestor_GRCh37_e71/
 
 ```
@@ -44,8 +44,26 @@ http://web.corral.tacc.utexas.edu/WGSAdownload/resources/human_ancestor_GRCh37_e
 A site has to be callable in the 1000 genomes project (denoted P in the callability file) and not in a repetitive region (denoted N) in the repeatmask file. The small script below does this for chromosome 22:
 
 ```
+python MakeMask.py {repeatmaskfile} {callabilityfile} {windowsize} {chromosomename} {outprefix}
+
+So for chromosome 22
 python MakeMask.py chr22.fa.masked 20140520.chr22.strict_mask.fasta.gz 1000 22 chr22
 ```
+This will generate two files. One is chr22.txt which reports the fraction of called bases for each window and chr22.bed which is a bedfile of all the callable regions.
+
+
+```
+>head chr22.txt
+
+
+```
+
+You can do it for all chromosomes (remember to change the ) and then concatenate them using cat. 
+
+```
+cat chr*.txt > Weightsfile.txt
+```
+
 
 
 
