@@ -22,7 +22,29 @@ python Decode.py <path to observations file> <output_prefix> <path to markov mod
 ```
 
 
-## Test data
+## Example (from VCF file to decoded segments)
+I thought it would be nice to have an entire reproduceble example of how to use this model. From a common starting point such as a VCF file to the final output. In this example I will analyse an individual (HG00096) from the 1000 genomes project phase 3. 
+
+First you will need to know which 1) bases can be called in the genome and 2) which variants are found in the outgroup. 
+
+1) Which bases could be called?
+
+```
+Callability file (hg37 - get all the files)
+ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/supporting/accessible_genome_masks/StrictMask/
+
+Repeatmask file (hg37 - all files in one zip)
+hgdownload.cse.ucsc.edu/goldenpath/hg19/bigZips/chromFaMasked.tar.gz
+
+Ancestral state file (hg37 alignment e71)
+http://web.corral.tacc.utexas.edu/WGSAdownload/resources/human_ancestor_GRCh37_e71/
+
+```
+
+A site has to be callable in the 1000 genomes project (denoted P in the callability file) and not in a repetitive region (denoted N) in the repeatmask file. 
+
+
+
 In the folder Test is the files needed to run the analysis. You will need a file with observations, which is the number of private variants for each window. I have chosen a window size of 1000 bp - meaning that the first number in the file will be how many private variants that is observed in the first 1000 bp of the chromosome 17. The weights.txt files is the number of called basepairs for each window and the Mutrates.txt file is the local mutation rate in this window. If the local mutation rate or number of callable bases are not known one can create a mutation rate and callability file of the same length as the observations.txt file and fill it out with 1.0. This corresponds to having called all bases in a window and have the genome-wide average mutation rate. 
 
 In the .hmm file you can insert your initial guesses of coalescene time for the different states into the outgroup and the time of admixure. 
