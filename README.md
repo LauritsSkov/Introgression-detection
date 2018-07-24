@@ -1,7 +1,7 @@
 # Introgression-detection
 These are the scripts needed to infere archaic introgression in modern human populations. 
 
-## Dependencies
+### Dependencies
 To run the python script you will need numpy. I am using this version of python and numpy:
 
 ```
@@ -9,7 +9,7 @@ python version 2.7.12
 numpy  version 1.11.1
 ```
 
-## Running the scripts
+### Running the scripts
 
 How to train the model
 ```
@@ -84,7 +84,7 @@ You dont need to know these parameters in advance because you train the model. T
 
 
 
-## Example (from VCF file to decoded segments)
+# Example (from VCF file to decoded segments)
 I thought it would be nice to have an entire reproduceble example of how to use this model. From a common starting point such as a VCF file to the final output. In this example I will analyse an individual (HG00096) from the 1000 genomes project phase 3. 
 
 First you will need to know which 1) bases can be called in the genome and 2) which variants are found in the outgroup. So I start out by downloading the files from the following directories.
@@ -190,7 +190,7 @@ wc -l weights.*
   6910928 total
 ```
 
-### Which variants are found in the outgroup
+### 2) Which variants are found in the outgroup
 
 Now we can download the 1000 genomes VCF files and remove all variants found in an outgroup (this case the YRI, ESN and MSL Subsaharan-Africans).
 
@@ -281,6 +281,7 @@ for file in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X
   done
 ```
 
+### Getting variants from an individual for training and decoding
 
 
 
