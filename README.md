@@ -66,7 +66,7 @@ So looking at the observations file we a region from 2 kb to 6 kb with high numb
 
 The parameterfile contains the number and names of states and the transition matrix and emission probabilities.
 
-```
+```python
 # State names (only used for decoding)
 states = ['Human','Archaic']
 
@@ -92,7 +92,7 @@ First you will need to know which 1) bases can be called in the genome and 2) wh
 
 ### 1) Which bases could be called?
 
-```
+```bash
 Callability file (hg37 - get all the files)
 ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/supporting/accessible_genome_masks/StrictMask/
 
@@ -106,10 +106,10 @@ http://web.corral.tacc.utexas.edu/WGSAdownload/resources/human_ancestor_GRCh37_e
 
 A site has to be callable in the 1000 genomes project (denoted P in the callability file) and not in a repetitive region (denoted N) in the repeatmask file. The small script below does this for chromosome 17:
 
-```
+```bash
 python MakeMask.py {repeatmaskfile} {callabilityfile} {windowsize} {chromosomename} {outprefix}
 
-So for chromosome 17
+# So for chromosome 17
 python MakeMask.py chr17.fa.masked 20140520.chr17.strict_mask.fasta.gz 1000 17 chr17
 ```
 
@@ -195,11 +195,11 @@ wc -l weights.*
 
 Now we can download the 1000 genomes VCF files and remove all variants found in an outgroup (this case the YRI, ESN and MSL Subsaharan-Africans).
 
-```
-VCF files are in this directory
+```bash
+# VCF files are in this directory
 ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/
 
-Metadata is here
+# Metadata is here
 ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel
 ```
 
@@ -234,7 +234,7 @@ tabix -h ALL.chr17.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf
 The first 10 lines of the file looks like this:
 
 ```bash
- head chr17.freq
+head chr17.freq
 CHROM   POS     N_ALLELES       N_CHR   {ALLELE:COUNT}
 17      439     2       584     C:584   A:0
 17      460     2       584     G:583   A:1
