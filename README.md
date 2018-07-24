@@ -81,9 +81,51 @@ head chr17.bed
 
 You can do it for all chromosomes (remember to change the outprefix name) and then concatenate them using cat. 
 
+```bash
+for file in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X
+  do echo $file
+  cat chr$file.txt >> weights.txt
+  cat chr$file.bed >> weights.bed
+  done
 ```
-cat chr*.txt > weights.txt
-cat chr*.bed > weights.bed
+
+To check everything worked so far look at the first 10 lines:
+
+```bash
+head weights.*
+
+==> weights.bed <==
+1       756781  756870  Called
+1       756879  756920  Called
+1       756948  757069  Called
+1       757071  757073  Called
+1       757077  757246  Called
+1       757364  757406  Called
+1       757474  757476  Called
+1       757765  757766  Called
+1       757777  757787  Called
+1       757920  757951  Called
+
+==> weights.txt <==
+1       0       0.0
+1       1000    0.0
+1       2000    0.0
+1       3000    0.0
+1       4000    0.0
+1       5000    0.0
+1       6000    0.0
+1       7000    0.0
+1       8000    0.0
+1       9000    0.0
+```
+
+And look at the number of lines:
+
+```bash
+wc -l weights.*
+  3874613 weights.bed
+  3036315 weights.txt
+  6910928 total
 ```
 
 ### Which variants are found in the outgroup
