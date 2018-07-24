@@ -1,8 +1,8 @@
 # Introgression-detection
 These are the scripts needed to infere archaic introgression in modern human populations. 
 
-[Go to Real Cool Heading section] (### Dependencies)
-[Go to Real Cool Heading section] (### Running the scripts)
+[Go to Real Cool Heading section](###Dependencies)
+[Go to Real Cool Heading section](###Running the scripts)
 
 
 ### Dependencies
