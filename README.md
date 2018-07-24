@@ -156,10 +156,20 @@ NA18505
 
 We first want to get all derived alleles from the outgroup that fall within regions we can call (the weights.bed file that we just made above). Now is a good time to make sure that the "chromosomename" argument is indeed the same as in the vcf file i.e. if in the VCF file the first column is chr1 your "chromosomename" should also have been chr1 and not just 1. 
 
-To do this we run the script:
+To do this I made a python script but for big vcffiles I found out tabix and vcftools works much faster. To get the frequency of bi-allelic snps in a given outgroup you can run (make sure to install vcftools and tabix!).
+
+```bash
+tabix -h ALL.chr17.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz -B chr17.bed | vcftools --vcf - --counts --stdout --keep outgroups.txt --remove-indels --min-alleles 2 --max-alleles 2 > chr17.freq
+```
+
+The first 10 lines of the file looks like this:
+
+```bash
+head chr17.freq
 
 
 
+```
 
 With this output file we can estimate the average mutation rate in a region compared to the 
 
