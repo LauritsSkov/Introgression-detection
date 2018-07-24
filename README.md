@@ -282,7 +282,20 @@ for file in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X
   done
 ```
 
+We can also remove make a list of all variants where the derived allele is found in the outgroup. 
+
+
+
+
+
+If you dont have ancestral/derived allele information you can just make a file of all sites that are variable in the outgroup like this: 
+
+
+
 ### Getting variants from an individual for training and decoding
+
+The last thing we need to run the scripts is the observation file for an individual. This will for each window show all the variants that individual has where the derived allele is not found in the outgroup and it is in a region we can call. For individual HG00096 we will prepare the observations like this:
+
 
 
 
