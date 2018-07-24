@@ -156,7 +156,7 @@ NA18505
 
 We first want to get all derived alleles from the outgroup that fall within regions we can call (the weights.bed file that we just made above). Now is a good time to make sure that the "chromosomename" argument is indeed the same as in the vcf file i.e. if in the VCF file the first column is chr1 your "chromosomename" should also have been chr1 and not just 1. 
 
-To do this I made a python script but for big vcffiles I found out tabix and vcftools works much faster. To get the frequency of bi-allelic snps in a given outgroup you can run (make sure to install vcftools and tabix!).
+To do this I made a python script but for big vcffiles I found out tabix and vcftools works much faster. To get the frequency of bi-allelic snps in a given outgroup you can run (make sure to install vcftools and tabix!). I have tabix version 0.2.5 where one uses -B to keep regions from a bed file but the newest version have changed this to -R (http://www.htslib.org/doc/tabix.html). The example below is for the 1000 genomes where each chromosome is in a separate vcf file but you could have a chromosomes in one vcf file and use the weights.bed file instead of a chromosome specific bed file.
 
 ```bash
 tabix -h ALL.chr17.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz -B chr17.bed | vcftools --vcf - --counts --stdout --keep outgroups.txt --remove-indels --min-alleles 2 --max-alleles 2 > chr17.freq
@@ -165,13 +165,54 @@ tabix -h ALL.chr17.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf
 The first 10 lines of the file looks like this:
 
 ```bash
-head chr17.freq
-
-
-
+ head chr17.freq
+CHROM   POS     N_ALLELES       N_CHR   {ALLELE:COUNT}
+17      439     2       584     C:584   A:0
+17      460     2       584     G:583   A:1
+17      1102    2       584     T:583   C:1
+17      1352    2       584     A:584   T:0
+17      1362    2       584     G:584   A:0
+17      1382    2       584     G:584   A:0
+17      1389    2       584     G:584   A:0
+17      1397    2       584     C:469   T:115
+17      1398    2       584     G:580   A:4
 ```
 
-With this output file we can estimate the average mutation rate in a region compared to the 
+With this output file we can estimate the average mutation rate in a region (I recommend 1,000,000 bp or 100,000 for humans because of this paper http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1007254) compared to the whole chromosome average. To do this run the script:
+
+```bash
+python Estimate_mutationrate.py {outgroup_frequencyfile} {windowsize} {maskfile} {outputfile}
+
+# so for chromosome 17
+python Estimate_mutationrate.py chr17.freq 1000000 chr17.txt chr17.mut
+```
+
+The first 10 lines of the output file will look like this:
+
+```
+head chr17*mut
+==> chr17.mut <==
+17      0       1.07927306084
+17      1000    1.07927306084
+17      2000    1.07927306084
+17      3000    1.07927306084
+17      4000    1.07927306084
+17      5000    1.07927306084
+17      6000    1.07927306084
+17      7000    1.07927306084
+17      8000    1.07927306084
+17      9000    1.07927306084
+```
+
+You can do this for all chromosomes and concatonate like before:
+
+```bash
+for file in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X
+  do echo $file
+  cat chr$file.mut >> mutationrates.txt
+  done
+```
+
 
 
 
