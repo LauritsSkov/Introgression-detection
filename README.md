@@ -21,6 +21,68 @@ How to decode the model
 python Decode.py {observationfile} {output_prefix} {parameterfile} {weightfile} {mutationratefile}
 ```
 
+Basically the three files observationfile, weightfile and mutationratefile says how many private snps, how many bases could be called and what the mutation rate is for each window in the genome. A toy example could look like this with column chromosome, window start and value:
+
+```
+head observationfile
+1      0       0
+1      1000    0
+1      2000    1
+1      3000    2
+1      4000    1
+1      5000    3
+1      6000    0
+1      7000    0
+1      8000    0
+1      9000    0
+
+head weightfile
+1      0       1.0
+1      1000    1.0
+1      2000    1.0
+1      3000    1.0
+1      4000    1.0
+1      5000    1.0
+1      6000    0.5
+1      7000    0.1
+1      8000    0.0
+1      9000    1.0
+
+head mutationratefile
+1      0       1.5
+1      1000    1.5
+1      2000    1.5
+1      3000    1.5
+1      4000    1.5
+1      5000    1.5
+1      6000    1.5
+1      7000    1.5
+1      8000    1.5
+1      9000    1.5
+```
+
+So looking at the observations file we a region from 2 kb to 6 kb with high number of variants. We can also see from the weightfile that we can call all bases in the region 0-6 kb but we could only call half the bases from 6-7 kb. From the mutationratefile we can see that the average mutation rate in this example is 1.5 times higher than the average for the chromosome.
+
+The parameterfile contains the number and names of states and the transition matrix and emission probabilities.
+
+```
+# State names (only used for decoding)
+states = ['Human','Archaic']
+
+# Initialization parameters (prob of staring in states)
+starting_probabilities = [0.98, 0.02]
+
+# transition matrix
+transitions = [[0.9995,0.0001],[0.012,0.98]]
+
+# emission matrix (poisson parameter)
+emissions = [0.04, 0.4]
+```
+
+You dont need to know these parameters in advance because you train the model. The emission values are the average number of variants per window in each state. 
+
+
+
 
 ## Example (from VCF file to decoded segments)
 I thought it would be nice to have an entire reproduceble example of how to use this model. From a common starting point such as a VCF file to the final output. In this example I will analyse an individual (HG00096) from the 1000 genomes project phase 3. 
