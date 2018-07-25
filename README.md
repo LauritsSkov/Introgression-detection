@@ -6,8 +6,13 @@ These are the scripts needed to infere archaic introgression in modern human pop
 To run the python script you will need numpy. I am using this version of python and numpy:
 
 ```
-python version 2.7.12
-numpy  version 1.11.1
+# To run the HMM model
+python    version 2.7.12
+numpy     version 1.11.1
+
+# If you want to follow my example (running on a 1000 genomes individual)
+vcftools  version 0.1.14
+tabix     version 0.2.5
 ```
 
 ### Running the scripts
@@ -66,7 +71,9 @@ So looking at the observations file we a region from 2 kb to 6 kb with high numb
 
 The parameterfile contains the number and names of states and the transition matrix and emission probabilities.
 
-```python
+```bash
+
+head parameterfile
 # State names (only used for decoding)
 states = ['Human','Archaic']
 
@@ -228,7 +235,8 @@ http://www.htslib.org/doc/tabix.html
 To get the frequency of bi-allelic snps in a given outgroup you can run (make sure to install vcftools and tabix!). I have tabix version 0.2.5 where one uses -B to keep regions from a bed file but the newest version have changed this to -R (http://www.htslib.org/doc/tabix.html). The example below is for the 1000 genomes where each chromosome is in a separate vcf file but you could have a chromosomes in one vcf file and use the weights.bed file instead of a chromosome specific bed file.
 
 ```bash
-tabix -h ALL.chr17.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz -B chr17.bed | vcftools --vcf - --counts --stdout --keep outgroups.txt --remove-indels --min-alleles 2 --max-alleles 2 > chr17.freq
+tabix -h ALL.chr17.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz -B chr17.bed | \
+vcftools --vcf - --counts --stdout --keep outgroups.txt --remove-indels --min-alleles 2 --max-alleles 2 > chr17.freq
 ```
 
 The first 10 lines of the file looks like this:
@@ -288,7 +296,9 @@ for file in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X
 The last thing we need to run the scripts is the observation file for an individual. This will for each window show all the variants that individual has where the derived allele is not found in the outgroup and it is in a region we can call. For individual HG00096 we will prepare the observations like this:
 
 ```
-tabix -fh 1000_genomes_phase3/ALL.chr17.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz -B chr17.bed | vcftools --vcf - --indv HG00096 --remove-indels --thin 10 --min-alleles 2 --max-alleles 2 --stdout --counts2 | python Filtervariants.py homo_sapiens_ancestor_17.fa chr17.freq 1000 chr17.txt HG00096.observations.txt
+tabix -fh 1000_genomes_phase3/ALL.chr17.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz -B chr17.bed | \
+vcftools --vcf - --indv HG00096 --remove-indels --thin 10 --min-alleles 2 --max-alleles 2 --stdout --counts2 | \
+python Filtervariants.py homo_sapiens_ancestor_17.fa chr17.freq 1000 chr17.txt HG00096.observations.txt
 
 # The python scripts takes the following arguments
 python Filtervariants.py {ancestral} {outgroupfrequency} {windowsize} {weightsfile} {output}
@@ -298,7 +308,9 @@ python Filtervariants.py {ancestral} {outgroupfrequency} {windowsize} {weightsfi
 If you dont have ancestral/derived allele information you can just make a file of all sites that are variable in the outgroup like this: 
 
 ```
-tabix -fh 1000_genomes_phase3/ALL.chr17.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz -B chr17.bed | vcftools --vcf - --indv HG00096 --remove-indels --thin 10 --min-alleles 2 --max-alleles 2 --stdout --counts2 | python FiltervariantsNOancestralinformation.py homo_sapiens_ancestor_17.fa chr17.freq 1000 chr17.txt HG00096.observations.txt
+tabix -fh 1000_genomes_phase3/ALL.chr17.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz -B chr17.bed | \
+vcftools --vcf - --indv HG00096 --remove-indels --thin 10 --min-alleles 2 --max-alleles 2 --stdout --counts2 | \
+python FiltervariantsNOancestralinformation.py homo_sapiens_ancestor_17.fa chr17.freq 1000 chr17.txt HG00096.observations.txt
 ```
 
 
