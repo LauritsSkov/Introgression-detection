@@ -295,7 +295,7 @@ for file in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X
 
 The last thing we need to run the scripts is the observation file for an individual. This will for each window show all the variants that individual has where the derived allele is not found in the outgroup and it is in a region we can call. For individual HG00096 we will prepare the observations like this:
 
-```
+```bash
 tabix -fh 1000_genomes_phase3/ALL.chr17.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz -B chr17.bed | \
 vcftools --vcf - --indv HG00096 --remove-indels --thin 10 --min-alleles 2 --max-alleles 2 --stdout --counts2 | \
 python Filtervariants.py homo_sapiens_ancestor_17.fa chr17.freq 1000 chr17.txt HG00096.observations.txt
@@ -307,7 +307,7 @@ python Filtervariants.py {ancestral} {outgroupfrequency} {windowsize} {weightsfi
 
 If you dont have ancestral/derived allele information you can just make a file of all sites that are variable in the outgroup like this: 
 
-```
+```bash
 tabix -fh 1000_genomes_phase3/ALL.chr17.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz -B chr17.bed | \
 vcftools --vcf - --indv HG00096 --remove-indels --thin 10 --min-alleles 2 --max-alleles 2 --stdout --counts2 | \
 python FiltervariantsNOancestralinformation.py homo_sapiens_ancestor_17.fa chr17.freq 1000 chr17.txt HG00096.observations.txt
