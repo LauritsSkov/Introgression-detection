@@ -48,12 +48,20 @@ with open(outgroupfile) as data:
 private_variants_to_keep = defaultdict(list)
 
 for line in sys.stdin:
-    if 'N_ALLELES' not in line:
-    	chrom, pos, _, total, ref, alt = line.strip().split()
+	if 'N_ALLELES' not in line:
+		chrom, pos, _, total, ref, alt = line.strip().split()
 
-    	window = int(pos) - int(pos)%window_size
+		window = int(pos) - int(pos)%window_size
+		ref_allele, ref_count = ref.split(':')
+		alt_allele, alt_count = alt.split(':')
 
-    	if (ancestral_allele[int(pos)-1].upper() == ref_allele.upper() and alt_count == '0') or (ancestral_allele[int(pos)-1].upper() == alt_allele.upper() and ref_count == '0') and derived_found[pos] != 1:
+		is_derived = False
+
+		if (ancestral_allele[int(pos)-1].upper() == ref_allele.upper() and alt_count != '0') or (ancestral_allele[int(pos)-1].upper() == alt_allele.upper() and ref_count != '0'):
+			is_derived = True
+
+		if is_derived and derived_found[pos] != 1:
+
 			private_variants_to_keep[window].append(pos)
 
 
@@ -63,5 +71,5 @@ with open(callablefile) as data, open(outfile,'w') as out:
 		chrom, start, _ = line.strip().split()
 
 		window = int(start) - int(start)%window_size
-		private_obs = len(private_variants_to_keep)
-		out.write('{}\t{}\t{}\t{}\n'.format(chrom, start, private_obs, ','.join(private_variants_to_keep)))
+		private_obs = len(private_variants_to_keep[window])
+		out.write('{}\t{}\t{}\t{}\n'.format(chrom, start, private_obs, ','.join(private_variants_to_keep[window])))
