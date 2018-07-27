@@ -364,7 +364,7 @@ for file in  HG00096.observations*
   done
   
   
-HG00096.observations2.txt
+HG00096.chr17.observations_NOancestral.txt
   78986 0
    1871 1
     161 2
@@ -376,7 +376,8 @@ HG00096.observations2.txt
       5 8
       2 9
       1 12
-HG00096.observations.txt
+      
+HG00096.chr17.observations.txt
   79003 0
    1959 1
     158 2
