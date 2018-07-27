@@ -25,8 +25,8 @@ for line in sys.stdin:
 		chrom, pos, _, total, ref, alt = line.strip().split()
 		window = int(pos) - int(pos)%window_size
 
-	if derived_found[pos] != 1:
-		private_variants_to_keep[window].append(pos)
+		if derived_found[pos] != 1:
+			private_variants_to_keep[window].append(pos)
 
 
 
