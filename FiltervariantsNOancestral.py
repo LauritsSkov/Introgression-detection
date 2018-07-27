@@ -27,7 +27,7 @@ for line in sys.stdin:
     	window = int(pos) - int(pos)%window_size
 
     	if derived_found[pos] != 1:
-			  private_variants_to_keep[window].append(pos)
+			private_variants_to_keep[window].append(pos)
 
 
 
