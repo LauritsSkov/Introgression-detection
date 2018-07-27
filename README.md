@@ -311,6 +311,9 @@ If you dont have ancestral/derived allele information you can just make a file o
 tabix -fh 1000_genomes_phase3/ALL.chr17.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz -B chr17.bed | \
 vcftools --vcf - --indv HG00096 --remove-indels --thin 10 --min-alleles 2 --max-alleles 2 --stdout --counts2 | \
 python FiltervariantsNOancestral.py chr17.freq 1000 chr17.txt HG00096.observations.txt
+
+# The python scripts takes the following arguments
+python FiltervariantsNOancestral.py {outgroupfrequency} {windowsize} {weightsfile} {output}
 ```
 
 
