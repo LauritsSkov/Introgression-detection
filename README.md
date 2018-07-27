@@ -297,25 +297,103 @@ The last thing we need to run the scripts is the observation file for an individ
 
 ```bash
 tabix -fh 1000_genomes_phase3/ALL.chr17.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz -B chr17.bed | \
-vcftools --vcf - --indv HG00096 --remove-indels --thin 10 --min-alleles 2 --max-alleles 2 --stdout --counts2 | \
-python Filtervariants.py homo_sapiens_ancestor_17.fa chr17.freq 1000 chr17.txt HG00096.observations.txt
+vcftools --vcf - --indv HG00096 --remove-indels --min-alleles 2 --max-alleles 2 --stdout --counts | \
+python Filtervariants.py homo_sapiens_ancestor_17.fa chr17.freq 1000 chr17.txt HG00096.chr17.observations.txt
 
 # The python scripts takes the following arguments
 python Filtervariants.py {ancestral} {outgroupfrequency} {windowsize} {weightsfile} {output}
 ```
 
 
-If you dont have ancestral/derived allele information you can just make a file of all sites that are variable in the outgroup like this: 
+If you dont have ancestral/derived allele information you can just make a file of all sites where the alternative allele is not found in the outgroup (assuming the reference allele is the ancestral): 
 
 ```bash
 tabix -fh 1000_genomes_phase3/ALL.chr17.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz -B chr17.bed | \
-vcftools --vcf - --indv HG00096 --remove-indels --thin 10 --min-alleles 2 --max-alleles 2 --stdout --counts2 | \
-python FiltervariantsNOancestral.py chr17.freq 1000 chr17.txt HG00096.observations.txt
+vcftools --vcf - --indv HG00096 --remove-indels --min-alleles 2 --max-alleles 2 --stdout --counts | \
+python FiltervariantsNOancestral.py chr17.freq 1000 chr17.txt HG00096.chr17.observations_NOancestral.txt
 
 # The python scripts takes the following arguments
 python FiltervariantsNOancestral.py {outgroupfrequency} {windowsize} {weightsfile} {output}
 ```
 
+If can now look at the observation file we have created for chromosome 17. This time we will look at the first 30 lines since nothing interestig is going on until then:
 
+```bash
+head -30 HG00096.chr17.observations.txt
+17      0       0
+17      1000    0
+17      2000    0
+17      3000    0
+17      4000    0
+17      5000    0
+17      6000    0
+17      7000    0
+17      8000    0
+17      9000    0
+17      10000   0
+17      11000   0
+17      12000   0
+17      13000   0
+17      14000   0
+17      15000   0
+17      16000   0
+17      17000   0
+17      18000   0
+17      19000   0
+17      20000   0
+17      21000   0
+17      22000   0
+17      23000   0
+17      24000   0
+17      25000   0
+17      26000   0
+17      27000   0
+17      28000   1       28094
+17      29000   0
 
+```
+
+We can see that in the window from 28,000 to 29,000 there is one private variant at position 28094. 
+
+We can also look the effect of having ancestral information or not. If we count the number of windows with 1,2,3... variants in HG00096.chr17.observations.txt and HG00096.chr17.observations_NOancestral.txt we find the following:
+
+```bash
+for file in  HG00096.observations*
+  do echo $file
+  cut -f3 $file | sort -n | uniq -c 
+  done
+  
+  
+HG00096.observations2.txt
+  78986 0
+   1871 1
+    161 2
+     87 3
+     41 4
+     15 5
+     22 6
+      5 7
+      5 8
+      2 9
+      1 12
+HG00096.observations.txt
+  79003 0
+   1959 1
+    158 2
+     51 3
+     16 4
+      4 5
+      3 6
+      1 7
+      1 8
+
+```
+
+We can make observation files for all chromosomes and concatonate them using:
+```bash
+for file in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X
+  do echo $file
+  cat HG00096.chr$file.observations.txt >> HG00096.observations.txt
+  done
+```
 
