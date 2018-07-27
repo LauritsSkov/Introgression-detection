@@ -9,13 +9,13 @@ derived_found = defaultdict(int)
 with open(outgroupfile) as data:
 	for line in data:
 		if 'N_ALLELES' not in line:
-		chrom, pos, _, total, ref, alt = line.strip().split()
+			chrom, pos, _, total, ref, alt = line.strip().split()
 
-		ref_allele, ref_count = ref.split(':')
-		alt_allele, alt_count = alt.split(':')
+			ref_allele, ref_count = ref.split(':')
+			alt_allele, alt_count = alt.split(':')
 
-		if alt_count != '0' or ref_count != '0':
-			derived_found[pos] = 1
+			if alt_count != '0' or ref_count != '0':
+				derived_found[pos] = 1
 
 
 private_variants_to_keep = defaultdict(list)
