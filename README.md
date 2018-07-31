@@ -189,14 +189,6 @@ head weights.*
 1       9000    0.0
 ```
 
-And look at the number of lines:
-
-```bash
-wc -l weights.*
-  3874613 weights.bed
-  3036315 weights.txt
-  6910928 total
-```
 
 ### 2) Which variants are found in the outgroup
 
@@ -258,10 +250,10 @@ CHROM   POS     N_ALLELES       N_CHR   {ALLELE:COUNT}
 With this output file we can estimate the average mutation rate in a region (I recommend 1,000,000 bp or 100,000 for humans because of this paper http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1007254) compared to the whole chromosome average. To do this run the script:
 
 ```bash
-python Estimate_mutationrate.py {outgroup_frequencyfile} {windowsize} {maskfile} {outputfile}
+python Estimate_mutationrate.py {outgroup_frequencyfile} {windowsize_to_calculate_mutationrate_in} {windowsize} {maskfile} {outputfile}
 
 # so for chromosome 17
-python Estimate_mutationrate.py chr17.freq 1000000 chr17.txt chr17.mut
+python Estimate_mutationrate.py chr17.freq 1000000 1000 chr17.txt chr17.mut
 ```
 
 The first 10 lines of the output file will look like this:
@@ -389,6 +381,8 @@ HG00096.chr17.observations.txt
 
 ```
 
+You can see that while the difference is not that great, having the ancestral information is still important. 
+
 We can make observation files for all chromosomes and concatonate them using:
 ```bash
 for file in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X
@@ -396,4 +390,56 @@ for file in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X
   cat HG00096.chr$file.observations.txt >> HG00096.observations.txt
   done
 ```
+
+Now before we run the script lets check that all files needed for the analysis are right. We can check that all of them have the same lines:
+
+```bash
+wc -l weights.txt
+3036315 weights.txt
+
+wc -l mutationrates.txt
+3036315 mutationrates.txt
+
+wc -l HG00096.observations.txt
+3036315 HG00096.observations.txt
+```
+
+We also have to make a file with some guesses for the starting parameters of the hidden markov model. I have made some in this file:
+
+```bash
+head StartingParameters.hmm
+# State names (only used for decoding)
+states = ['Human','Archaic']
+
+# Initialization parameters (prob of staring in states)
+starting_probabilities = [0.98, 0.02]
+
+# transition matrix
+transitions = [[0.9995,0.0005],[0.012,0.98]]
+
+# emission matrix (poisson parameter)
+emissions = [0.04, 0.1]
+```
+
+You can experiment with chosen different starting parameters but most of the time when you train on a whole genome the parameters will converge to some set. What these parameters mean (if we start with emissions) is that in the first state (that we call human) we expect a LOWER density of private variants than in the Archaic. In the human we expect 0.04 snps pr 1000 bp. If we for now just assume all variants are heterozygous then we find 0.02 variants per chromosome. This would mean that the coalescent to the outgroup is given by:
+0.02 = Tcoal * L * mutrate = Tcoal * 1000 * 1.25 * 10^-8. If we solve for Tcoal this would mean a coalescence time of 1600 generation (48,000 years if you assume the generation time is 30 year/gen). The coalescence time for state 2 segments (Archaic) with the outgroup is 240,000 year (on the low end but hey we are just guessing now). 
+
+From the transition matrix you can also see that we think probability of staying within an Archaic segment is 0.98. That means that the states will on average be 50 windows long (or 50 kb since the window size is 1000 bp). That would mean that the introgression event happend around 2000 generations ago. 
+
+### Training the model
+
+If you have made it until here then congratulations now it is (finally) time to train the model. We run the script:
+
+```bash
+python Train.py HG00096.observations.txt HG00096_trained StartingParameters.hmm weights.txt mutationrates.txt
+```
+
+The model will create two files. One is called HG00096_trained.log where it report the parameters and likelihood of the model for each iteration and HG00096_trained.hmm which is the same format as StartingParameters.hmm (just with the parameters that optimize the likelihood).
+
+
+
+
+
+
+
 
