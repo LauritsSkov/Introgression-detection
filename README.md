@@ -440,24 +440,13 @@ doing iteration 0 with old prob -342131.828014 and new prob -329646.667856
 doing iteration 1 with old prob -329646.667856 and new prob -328689.97075
 doing iteration 2 with old prob -328689.97075 and new prob -328350.976312
 doing iteration 3 with old prob -328350.976312 and new prob -328203.432826
-doing iteration 4 with old prob -328203.432826 and new prob -328134.66934
-doing iteration 5 with old prob -328134.66934 and new prob -328100.707497
-doing iteration 6 with old prob -328100.707497 and new prob -328082.991021
-doing iteration 7 with old prob -328082.991021 and new prob -328073.283497
-doing iteration 8 with old prob -328073.283497 and new prob -328067.736662
-doing iteration 9 with old prob -328067.736662 and new prob -328064.456712
-doing iteration 10 with old prob -328064.456712 and new prob -328062.463841
-doing iteration 11 with old prob -328062.463841 and new prob -328061.227287
-doing iteration 12 with old prob -328061.227287 and new prob -328060.447632
-doing iteration 13 with old prob -328060.447632 and new prob -328059.950061
-doing iteration 14 with old prob -328059.950061 and new prob -328059.629615
-doing iteration 15 with old prob -328059.629615 and new prob -328059.421823
-doing iteration 16 with old prob -328059.421823 and new prob -328059.28638
-doing iteration 17 with old prob -328059.28638 and new prob -328059.19775
-doing iteration 18 with old prob -328059.19775 and new prob -328059.139577
+...............................
+doing iteration 32 with old prob -328059.027492 and new prob -328059.027316
+doing iteration 33 with old prob -328059.027316 and new prob -328059.027194
+doing iteration 34 with old prob -328059.027194 and new prob -328059.027117
 ```
 
-The model will create two files. One is called HG00096_trained.log where it report the parameters and likelihood of the model for each iteration and HG00096_trained.hmm which is the same format as StartingParameters.hmm (just with the parameters that optimize the likelihood).The files looks like this:
+This took a couple of hours to run on my computer with around a Gigabyte memory. The model will create two files. One is called HG00096_trained.log where it report the parameters and likelihood of the model for each iteration and HG00096_trained.hmm which is the same format as StartingParameters.hmm (just with the parameters that optimize the likelihood).The files looks like this:
 
 ```bash
 head HG00096_trained.log
@@ -530,8 +519,3 @@ chrom   start   observations    Mostlikely      Human           Archaic
 1       7000    0               Human           0.743544840571  0.256454566945
 1       8000    0               Human           0.747351018397  0.252648389099
 ```
-
-
-
-
-
