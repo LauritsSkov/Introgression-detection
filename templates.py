@@ -46,21 +46,23 @@ def log_with_inf_array(matrix):
 def make_hmm_from_file(markov_param, weights_file, mut_file):
     
     with open(markov_param) as data:
-        for line in data:
-            exec(line.strip())
+       for line in data:
+           exec(line.strip())
+
 
     # Load weights file
     weights = []
     with open(weights_file) as data:
         for line in data:
-            weights.append(float(line.strip()))
+            weights.append(float(line.strip().split()[2]))
 
 
      # Load mutation rate file
     mutrates = []
     with open(mut_file) as data:
         for line in data:
-            mutrates.append(float(line.strip()))
+            mutrates.append(float(line.strip().split()[2]))
+            #mutrates.append(1.0)
 
     # Log transform the transitions
     for i, row in enumerate(transitions):
@@ -75,12 +77,16 @@ def make_hmm_from_file(markov_param, weights_file, mut_file):
     return (states, np.array(transitions), emissions, starting_probabilities, weights, mutrates)
 
 def read_observations_from_file(f):
-	obs = []
-	with open(f) as data:
-		for line in data:
-			obs.append(int(line.strip()))
+    obs = []
+    chroms = []
+    starts = []
+    with open(f) as data:
+        for line in data:
+            chroms.append(line.strip().split()[0])
+            starts.append(int(line.strip().split()[1]))
+            obs.append(int(line.strip().split()[2]))
 
-	return obs
+    return obs, chroms, starts
 
 
 
@@ -91,7 +97,8 @@ def GET_forward_prob(init_start, transitions, emissions, weights, observations, 
     """
     fractorials = {}
     frac_sum = 0
-    for i in range(100):
+
+    for i in range(max(observations)+1):
 
         if i < 2:
 
@@ -151,7 +158,7 @@ def GET_backward_prob(init_start, transitions, emissions, weights, observations,
 
     fractorials = {}
     frac_sum = 0
-    for i in range(100):
+    for i in range(max(observations)+1):
 
         if i < 2:
 
@@ -231,7 +238,7 @@ def train_on_obs_pure_baum(init_start, transitions, emissions, weights, observat
 
     fractorials = {}
     frac_sum = 0
-    for i in range(100):
+    for i in range(max(observations)+1):
 
         if i < 2:
 
