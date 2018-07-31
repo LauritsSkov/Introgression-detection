@@ -39,10 +39,10 @@ Basically the three files observationfile, weightfile and mutationratefile says 
 head observationfile
 1      0       0
 1      1000    0
-1      2000    1
-1      3000    2
-1      4000    1
-1      5000    3
+1      2000    1  2001
+1      3000    2  3000, 3050
+1      4000    1  4324
+1      5000    3  5069, 5114, 5500
 1      6000    0
 1      7000    0
 1      8000    0
@@ -73,7 +73,7 @@ head mutationratefile
 1      9000    1.5
 ```
 
-So looking at the observations file we a region from 2 kb to 6 kb with high number of variants. We can also see from the weightfile that we can call all bases in the region 0-6 kb but we could only call half the bases from 6-7 kb. From the mutationratefile we can see that the average mutation rate in this example is 1.5 times higher than the average for the chromosome.
+So looking at the observations file we a region from 2 kb to 6 kb with high number of variants and you can see the position of each variant. We can also see from the weightfile that we can call all bases in the region 0-6 kb (we cal 100 of all bases) but we could only call half the bases from 6-7 kb. From the mutationratefile we can see that the average mutation rate in this example is 1.5 times higher than the average for the chromosome.
 
 The parameterfile contains the number and names of states and the transition matrix and emission probabilities.
 
