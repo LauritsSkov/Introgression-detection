@@ -1,7 +1,7 @@
 # Introgression-detection
 These are the scripts needed to infere archaic introgression in modern human populations. 
 
-![Overview of model](https://user-images.githubusercontent.com/30321818/43464458-73cc367a-94db-11e8-9656-3d90b6769f84.jpg)
+![Overview of model](https://user-images.githubusercontent.com/30321818/43464826-4d11d46c-94dc-11e8-8f1a-6851aa5d9125.jpg)
 
 The way the model works is by removing variation found in an outgroup population and then using the remaining variants binning the genome into regions of different variant density. If the model works well we would expect that introgressed regions have higher variant density than non-introgressed - because they have spend more time accumulation variation that is not found in the outgroup.
 
