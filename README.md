@@ -213,6 +213,7 @@ ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_sample
 The individual names in the outgroup should be in a file (could be called outgroups.txt) with one per line like shown below.
 
 ```
+head outgroups.txt
 NA18486
 NA18488
 NA18489
@@ -525,3 +526,11 @@ chrom   start   observations    Mostlikely      Human           Archaic
 1       7000    0               Human           0.743544840571  0.256454566945
 1       8000    0               Human           0.747351018397  0.252648389099
 ```
+
+And that is it! Now you have run the model and gotten a set of parameters that you can interpret biologically (see my paper) and you have a list of segments that belong to the human and Archaic state. 
+
+If you have any questions about the use of the scripts, if you find errors or if you have feedback you can contact my here (make an issue) or write to:
+
+lskov@cs.au.dk
+
+
