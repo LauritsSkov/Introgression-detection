@@ -3,6 +3,11 @@ These are the scripts needed to infere archaic introgression in modern human pop
 
 ![Overview of model](https://user-images.githubusercontent.com/30321818/43464458-73cc367a-94db-11e8-9656-3d90b6769f84.jpg)
 
+The way the model works is by removing variation found in an outgroup population and then using the remaining variants binning the genome into regions of different variant density. If the model works well we would expect that introgressed regions have higher variant density than non-introgressed - because they have spend more time accumulation variation that is not found in the outgroup.
+
+Currently there is a preprint on Bioarchive (https://www.biorxiv.org/content/early/2018/03/23/283606) describing and evaluating the method but I will post a link to the paper once it is published (currently under review). 
+
+
 ### Dependencies
 To run the python script you will need numpy. I am using this version of python and numpy:
 
