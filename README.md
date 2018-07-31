@@ -24,7 +24,7 @@ python Train.py {observationfile} {output_prefix} {parameterfile} {weightfile} {
 
 How to decode the model
 ```
-python Decode.py {observationfile} {output_prefix} {parameterfile} {weightfile} {mutationratefile}
+python Decode.py {observationfile} {output_prefix} {parameterfile} {weightfile} {mutationratefile} {windowsize}
 ```
 
 Basically the three files observationfile, weightfile and mutationratefile says how many private snps, how many bases could be called and what the mutation rate is for each window in the genome. A toy example could look like this with column chromosome, window start and value:
@@ -437,7 +437,47 @@ python Train.py HG00096.observations.txt HG00096_trained StartingParameters.hmm 
 The model will create two files. One is called HG00096_trained.log where it report the parameters and likelihood of the model for each iteration and HG00096_trained.hmm which is the same format as StartingParameters.hmm (just with the parameters that optimize the likelihood).
 
 
+### Decoding the model
 
+Now that we have a set of trained parameters that maximize the likelihood we can decode the model using the following script:
+
+```bash
+python Decode.py HG00096.observations.txt HG00096_decoded HG00096_trained.hmm weights.txt mutationrates.txt 1000
+
+
+
+
+```
+
+This will also produce two files. One is HG00096_decoded.Summary which is like a bedfile and tell you what part of the sequence belong to different states. It also tells you how many snps that are in each segment and what the average posterior probability for being in that segment is. The other is HG00096_decoded.All_posterior_probs.txt and this is a window by window assignment to each state. 
+
+The files look like this:
+
+```bash
+head HG00096_decoded.Summary.txt
+name    chrom   start   end     length  state   snps    mean_prob
+HG00096_decoded 1       0       3424000 3425000 Human   114     0.975435021019
+HG00096_decoded 1       3425000 3449000 25000   Archaic 19      0.956203499367
+HG00096_decoded 1       3450000 4259000 810000  Human   24      0.984532458656
+HG00096_decoded 1       4260000 4367000 108000  Archaic 20      0.792893841425
+HG00096_decoded 1       4368000 6142000 1775000 Human   54      0.989351192407
+HG00096_decoded 1       6143000 6150000 8000    Archaic 6       0.822766806209
+HG00096_decoded 1       6151000 9319000 3169000 Human   81      0.990871350063
+HG00096_decoded 1       9320000 9361000 42000   Archaic 10      0.853517013725
+HG00096_decoded 1       9362000 12595000        3234000 Human   70      0.987032899434
+
+head HG00096_decoded.All_posterior_probs.txt
+chrom   start   observations    Mostlikely      Human   Archaic
+1       0       0       Human   0.714740575355  0.285258832131
+1       1000    0       Human   0.719097642964  0.280901764546
+1       2000    0       Human   0.723371380417  0.276628027107
+1       3000    0       Human   0.727563381381  0.27243602611
+1       4000    0       Human   0.731675209186  0.268324198332
+1       5000    0       Human   0.735708397086  0.264291010418
+1       6000    0       Human   0.739664449158  0.26033495837
+1       7000    0       Human   0.743544840571  0.256454566945
+1       8000    0       Human   0.747351018397  0.252648389099
+```
 
 
 
