@@ -111,7 +111,9 @@ http://web.corral.tacc.utexas.edu/WGSAdownload/resources/human_ancestor_GRCh37_e
 
 ```
 
-A site has to be callable in the 1000 genomes project (denoted P in the callability file) and not in a repetitive region (denoted N) in the repeatmask file. The small script below does this for chromosome 17:
+A site has to be callable in the 1000 genomes project (denoted P in the callability file) and not in a repetitive region (denoted N) in the repeatmask file. You can change the Ps and Ns in the python code or comment out the use of one of the files depending on what format your callability files are in.
+
+The small script below does this for chromosome 17:
 
 ```bash
 python MakeMask.py {repeatmaskfile} {callabilityfile} {windowsize} {chromosomename} {outprefix}
@@ -488,6 +490,8 @@ transitions = [[0.998901410753,0.00109858924719],[0.0180266949275,0.981973305073
 # emission matrix (poisson parameter)
 emissions = [0.044536419546627744, 0.35668151800605369]
 ```
+
+So we can see that our guess for the emission of the Human state was fairly close, but the actual emission for the Archaic state was off. The new emission parameter corresponds to a coalescence between the Archaic and outgroup at 854,400 years which is after the estimate for the splittime of humans and Neanderthals (500,000 - 750,000 years ago). The transmission matrix also suggests that admixture happened around 2000 generations ago. Note this is a very rough way of estimating the length distribution of Archaic segments but as a back-of-the-envelope-thing it can help you get an idea of the admixture time.
 
 ### Decoding the model
 
