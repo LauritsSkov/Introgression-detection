@@ -5,7 +5,7 @@ _, infile, outprefix, model, weights_file, mutfile = sys.argv
 
 # Load data
 state_names, transitions, emissions, starting_probabilities, weights, mutrates = make_hmm_from_file(model, weights_file, mutfile) 
-obs = read_observations_from_file(infile)
+obs, _, _ = read_observations_from_file(infile)
 
 # Train model
 epsilon = 0.0001
