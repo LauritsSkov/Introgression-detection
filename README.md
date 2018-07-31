@@ -432,10 +432,62 @@ If you have made it until here then congratulations now it is (finally) time to 
 
 ```bash
 python Train.py HG00096.observations.txt HG00096_trained StartingParameters.hmm weights.txt mutationrates.txt
+
+# Which produces the following stdout
+doing iteration 0 with old prob -342131.828014 and new prob -329646.667856
+doing iteration 1 with old prob -329646.667856 and new prob -328689.97075
+doing iteration 2 with old prob -328689.97075 and new prob -328350.976312
+doing iteration 3 with old prob -328350.976312 and new prob -328203.432826
+doing iteration 4 with old prob -328203.432826 and new prob -328134.66934
+doing iteration 5 with old prob -328134.66934 and new prob -328100.707497
+doing iteration 6 with old prob -328100.707497 and new prob -328082.991021
+doing iteration 7 with old prob -328082.991021 and new prob -328073.283497
+doing iteration 8 with old prob -328073.283497 and new prob -328067.736662
+doing iteration 9 with old prob -328067.736662 and new prob -328064.456712
+doing iteration 10 with old prob -328064.456712 and new prob -328062.463841
+doing iteration 11 with old prob -328062.463841 and new prob -328061.227287
+doing iteration 12 with old prob -328061.227287 and new prob -328060.447632
+doing iteration 13 with old prob -328060.447632 and new prob -328059.950061
+doing iteration 14 with old prob -328059.950061 and new prob -328059.629615
+doing iteration 15 with old prob -328059.629615 and new prob -328059.421823
+doing iteration 16 with old prob -328059.421823 and new prob -328059.28638
+doing iteration 17 with old prob -328059.28638 and new prob -328059.19775
+doing iteration 18 with old prob -328059.19775 and new prob -328059.139577
 ```
 
-The model will create two files. One is called HG00096_trained.log where it report the parameters and likelihood of the model for each iteration and HG00096_trained.hmm which is the same format as StartingParameters.hmm (just with the parameters that optimize the likelihood).
+The model will create two files. One is called HG00096_trained.log where it report the parameters and likelihood of the model for each iteration and HG00096_trained.hmm which is the same format as StartingParameters.hmm (just with the parameters that optimize the likelihood).The files looks like this:
 
+```bash
+head HG00096_trained.log
+name                            iteration     state   value             comment                 model
+HG00096.observations.txt        0             1       -329646.667856    forward.probability     StartingParameters.py
+HG00096.observations.txt        0             0       0.0453121826934   emission.state.1        StartingParameters.py
+HG00096.observations.txt        0             1       0.2844683425      emission.state.2        StartingParameters.py
+HG00096.observations.txt        0             1       0.999456527903    transition.state.1.to.1 StartingParameters.py
+HG00096.observations.txt        0             1       0.000543472096929 transition.state.1.to.2 StartingParameters.py
+HG00096.observations.txt        0             1       0.00682378074967  transition.state.2.to.1 StartingParameters.py
+HG00096.observations.txt        0             1       0.99317621925     transition.state.2.to.2 StartingParameters.py
+HG00096.observations.txt        1             1       -328689.97075     forward.probability     StartingParameters.py
+HG00096.observations.txt        1             0       0.0451119255211   emission.state.1        StartingParameters.py
+HG00096.observations.txt        1             1       0.312322129188    emission.state.2        StartingParameters.py
+HG00096.observations.txt        1             1       0.999339550661    transition.state.1.to.1 StartingParameters.py
+HG00096.observations.txt        1             1       0.000660449338687 transition.state.1.to.2 StartingParameters.py
+HG00096.observations.txt        1             1       0.00908742164102  transition.state.2.to.1 StartingParameters.py
+HG00096.observations.txt        1             1       0.990912578359    transition.state.2.to.2 StartingParameters.py
+
+head HG00096_trained.hmm
+# State names (only used for decoding)
+states = ['Human','Archaic']
+
+# Initialization parameters (prob of staring in states)
+starting_probabilities = [0.64711360595814615, 0.35288571994646434]
+
+# transition matrix
+transitions = [[0.998901410753,0.00109858924719],[0.0180266949275,0.981973305073]]
+
+# emission matrix (poisson parameter)
+emissions = [0.044536419546627744, 0.35668151800605369]
+```
 
 ### Decoding the model
 
@@ -443,10 +495,6 @@ Now that we have a set of trained parameters that maximize the likelihood we can
 
 ```bash
 python Decode.py HG00096.observations.txt HG00096_decoded HG00096_trained.hmm weights.txt mutationrates.txt 1000
-
-
-
-
 ```
 
 This will also produce two files. One is HG00096_decoded.Summary which is like a bedfile and tell you what part of the sequence belong to different states. It also tells you how many snps that are in each segment and what the average posterior probability for being in that segment is. The other is HG00096_decoded.All_posterior_probs.txt and this is a window by window assignment to each state. 
