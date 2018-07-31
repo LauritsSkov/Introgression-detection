@@ -1,6 +1,7 @@
 # Introgression-detection
 These are the scripts needed to infere archaic introgression in modern human populations. 
 
+![Overview of model](https://user-images.githubusercontent.com/30321818/43464458-73cc367a-94db-11e8-9656-3d90b6769f84.jpg)
 
 ### Dependencies
 To run the python script you will need numpy. I am using this version of python and numpy:
