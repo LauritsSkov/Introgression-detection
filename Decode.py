@@ -7,7 +7,7 @@ window_size = int(window_size)
 
 # Load data
 state_names, transitions, emissions, starting_probabilities, weights, mutrates = make_hmm_from_file(model, weights_file, mutfile) 
-obs, chroms, starts = read_observations_from_file(infile)
+obs, chroms, starts, variants = read_observations_from_file(infile)
 
 
 
@@ -29,13 +29,13 @@ with open(outprefix + '.All_posterior_probs.txt','w') as posterior_sequence, ope
 
     # Make headers
     summary.write('name\tchrom\tstart\tend\tlength\tstate\tsnps\tmean_prob\n')
-    posterior_sequence.write('chrom\tstart\tobservations\tMostlikely\t{}\n'.format('\t'.join(state_names)))
+    posterior_sequence.write('chrom\tstart\tobservations\tvariants\tMostlikely\t{}\n'.format('\t'.join(state_names)))
 
 
 
-    for i, (x,v, chrom, current_start) in enumerate(zip(obs, post_seq, chroms, starts)):
+    for i, (x,v, chrom, current_start, var) in enumerate(zip(obs, post_seq, chroms, starts, variants)):
         index, value = max(enumerate([float(y) for y in v]), key=operator.itemgetter(1))
-        posterior_sequence.write('{0}\t{1}\t{2}\t{3}\t{4}\n'.format(chrom, current_start, x, state_names[index], '\t'.join(v) ))
+        posterior_sequence.write('{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n'.format(chrom, current_start, x, var, state_names[index], '\t'.join(v) ))
 
         snps = x
         current_seg = state_names[index]       
