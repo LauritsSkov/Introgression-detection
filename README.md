@@ -514,20 +514,21 @@ HG00096_decoded 1       6151000 9319000   3169000   Human   81      0.9908713500
 HG00096_decoded 1       9320000 9361000   42000     Archaic 10      0.853517013725
 HG00096_decoded 1       9362000 12595000  3234000   Human   70      0.987032899434
 
-# The first 10 lines of the decoded file is not so interesting so lets look for when there is a change from the Human State to the Archaic state:
+# The first 10 lines of the decoded file is not so interesting.
+# lets look for when there is a change from the Human State to the Archaic state:
 
 grep Archaic -C 5 HG00096_decoded.All_posterior_probs.txt | less -S
-chrom start    observations variants            Mostlikely    Human             Archaic
-1     3420000  0                                Human         0.960132305873    0.0398670750447
-1     3421000  0                                Human         0.935799403238    0.0641999777124
-1     3422000  0                                Human         0.892665325274    0.107334055645
-1     3423000  0                                Human         0.809656125269    0.190343255645
-1     3424000  0                                Human         0.657964767443    0.342034613507
-1     3425000  0                                Archaic       0.427257922039    0.572741458885
-1     3426000  2            3426693,3426796     Archaic       0.0115331024136   0.988466278588
-1     3427000  2            3427298,3427351     Archaic       0.000513363074651 0.999486017917
-1     3428000  1            3428747             Archaic       0.000265951782845 0.999733429141
-1     3429000  0                                Archaic       0.000255018108855 0.999744362864
+chrom start    observations variants            Mostlikely    Human              Archaic
+1     3420000  0                                Human         0.960132305873     0.0398670750447
+1     3421000  0                                Human         0.935799403238     0.0641999777124
+1     3422000  0                                Human         0.892665325274     0.107334055645
+1     3423000  0                                Human         0.809656125269     0.190343255645
+1     3424000  0                                Human         0.657964767443     0.342034613507
+1     3425000  0                                Archaic       0.427257922039     0.572741458885
+1     3426000  2            3426693,3426796     Archaic       0.0115331024136    0.988466278588
+1     3427000  2            3427298,3427351     Archaic       0.000513363074651  0.999486017917
+1     3428000  1            3428747             Archaic       0.000265951782845  0.999733429141
+1     3429000  0                                Archaic       0.000255018108855  0.999744362864
 1     3430000  0                                Archaic       0.000164073074059  0.999835307885
 1     3431000  2            3431441,3431555     Archaic       1.72811908633e-05  0.999982099791
 1     3432000  0                                Archaic       6.08260521228e-05  0.999938554912
@@ -554,6 +555,9 @@ chrom start    observations variants            Mostlikely    Human             
 1     3453000  0                                Human         0.94950522597      0.0504941550762
 1     3454000  0                                Human         0.972586006976     0.0274133740925
 ```
+So the model seems to be doing what we want. It finds regions with a high snp density of variants not found in the outgroup (Africa) and classifies them as archaic. This region that I am showing in the HG00096_decoded.All_posterior_probs.txt corresponds to the second line in the HG00096_decoded.Summary.txt file.
+
+
 
 And that is it! Now you have run the model and gotten a set of parameters that you can interpret biologically (see my paper) and you have a list of segments that belong to the human and Archaic state. 
 
