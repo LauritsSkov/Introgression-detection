@@ -118,6 +118,7 @@ http://web.corral.tacc.utexas.edu/WGSAdownload/resources/human_ancestor_GRCh37_e
 ```
 
 A site has to be callable in the 1000 genomes project (denoted P in the callability file) and not in a repetitive region (denoted N) in the repeatmask file. You can change the Ps and Ns in the python code or comment out the use of one of the files depending on what format your callability files are in.
+NOTE: A case could definately be made for only using the callability file from the 1000 genomes project but I am being extra conservative and also removing everything that is in repeatmasked regions. You could also use the map35_100 filter (regions where all 35 k-mers map uniqly to the reference genome) from this paper: http://science.sciencemag.org/content/early/2017/10/04/science.aao1887. 
 
 The small script below does this for chromosome 17:
 
