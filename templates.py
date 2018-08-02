@@ -80,13 +80,19 @@ def read_observations_from_file(f):
     obs = []
     chroms = []
     starts = []
+    variants = []
     with open(f) as data:
         for line in data:
             chroms.append(line.strip().split()[0])
             starts.append(int(line.strip().split()[1]))
             obs.append(int(line.strip().split()[2]))
+            
+            if line.strip().split()[2] != '0':
+                variants.append(line.strip().split()[3])
+            else:
+                variants.append('')
 
-    return obs, chroms, starts
+    return obs, chroms, starts, variants
 
 
 
