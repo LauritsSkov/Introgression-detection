@@ -557,6 +557,18 @@ chrom start    observations variants            Mostlikely    Human             
 ```
 So the model seems to be doing what we want. It finds regions with a high snp density of variants not found in the outgroup (Africa) and classifies them as archaic. This region that I am showing in the HG00096_decoded.All_posterior_probs.txt corresponds to the second line in the HG00096_decoded.Summary.txt file.
 
+Furthermore this region also comes up in the same individual (abeit with different start and ending points) when you other ways of identifying archaic segments!
+
+```bash
+# Conditional random field (S. Sankararaman - 2014)
+1     3,421,722-3,450,286 HG00096
+# Sstar (B. Vernot - 2016)
+1     3,427,298-3,461,813 HG00096
+# Sprime (S. Browning - 2018)
+1     3,418,794-3,457,377 HG00096
+# HMM (L. Skov 2018)
+1     3,425,000-3,449,000 HG00096
+```
 
 
 And that is it! Now you have run the model and gotten a set of parameters that you can interpret biologically (see my paper) and you have a list of segments that belong to the human and Archaic state. 
