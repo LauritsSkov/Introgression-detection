@@ -459,20 +459,20 @@ This took a couple of hours to run on my computer with around a Gigabyte memory.
 ```bash
 head HG00096_trained.log
 name                            iteration     state   value             comment                 model
-HG00096.observations.txt        0             1       -329646.667856    forward.probability     StartingParameters.py
-HG00096.observations.txt        0             0       0.0453121826934   emission.state.1        StartingParameters.py
-HG00096.observations.txt        0             1       0.2844683425      emission.state.2        StartingParameters.py
-HG00096.observations.txt        0             1       0.999456527903    transition.state.1.to.1 StartingParameters.py
-HG00096.observations.txt        0             1       0.000543472096929 transition.state.1.to.2 StartingParameters.py
-HG00096.observations.txt        0             1       0.00682378074967  transition.state.2.to.1 StartingParameters.py
-HG00096.observations.txt        0             1       0.99317621925     transition.state.2.to.2 StartingParameters.py
-HG00096.observations.txt        1             1       -328689.97075     forward.probability     StartingParameters.py
-HG00096.observations.txt        1             0       0.0451119255211   emission.state.1        StartingParameters.py
-HG00096.observations.txt        1             1       0.312322129188    emission.state.2        StartingParameters.py
-HG00096.observations.txt        1             1       0.999339550661    transition.state.1.to.1 StartingParameters.py
-HG00096.observations.txt        1             1       0.000660449338687 transition.state.1.to.2 StartingParameters.py
-HG00096.observations.txt        1             1       0.00908742164102  transition.state.2.to.1 StartingParameters.py
-HG00096.observations.txt        1             1       0.990912578359    transition.state.2.to.2 StartingParameters.py
+HG00096.observations.txt        0             1       -329646.667856    forward.probability     StartingParameters.hmm
+HG00096.observations.txt        0             0       0.0453121826934   emission.state.1        StartingParameters.hmm
+HG00096.observations.txt        0             1       0.2844683425      emission.state.2        StartingParameters.hmm
+HG00096.observations.txt        0             1       0.999456527903    transition.state.1.to.1 StartingParameters.hmm
+HG00096.observations.txt        0             1       0.000543472096929 transition.state.1.to.2 StartingParameters.hmm
+HG00096.observations.txt        0             1       0.00682378074967  transition.state.2.to.1 StartingParameters.hmm
+HG00096.observations.txt        0             1       0.99317621925     transition.state.2.to.2 StartingParameters.hmm
+HG00096.observations.txt        1             1       -328689.97075     forward.probability     StartingParameters.hmm
+HG00096.observations.txt        1             0       0.0451119255211   emission.state.1        StartingParameters.hmm
+HG00096.observations.txt        1             1       0.312322129188    emission.state.2        StartingParameters.hmm
+HG00096.observations.txt        1             1       0.999339550661    transition.state.1.to.1 StartingParameters.hmm
+HG00096.observations.txt        1             1       0.000660449338687 transition.state.1.to.2 StartingParameters.hmm
+HG00096.observations.txt        1             1       0.00908742164102  transition.state.2.to.1 StartingParameters.hmm
+HG00096.observations.txt        1             1       0.990912578359    transition.state.2.to.2 StartingParameters.hmm
 
 head HG00096_trained.hmm
 # State names (only used for decoding)
