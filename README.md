@@ -5,7 +5,7 @@ These are the scripts needed to infere archaic introgression in modern human pop
 
 The way the model works is by removing variation found in an outgroup population and then using the remaining variants binning the genome into regions of different variant density. If the model works well we would expect that introgressed regions have higher variant density than non-introgressed - because they have spend more time accumulation variation that is not found in the outgroup.
 
-Currently there is a preprint on Bioarchive (https://www.biorxiv.org/content/early/2018/03/23/283606) describing and evaluating the method but I will post a link to the paper once it is published (currently under review). 
+The method is now published in PlosGenetics and can be found here: ![Detecting archaic introgression using an unadmixed outgroup](https://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1007641) This paper is describing and evaluating the method. 
 
 
 ### Dependencies
