@@ -315,10 +315,55 @@ myhmm.hmm  			# Initial guess for HMM parameters
 trained.hmm			# Trained HMM parameters
 decoded.Summary.txt        	# Decoded summary file
 decoded.All_posterior_probs.txt # annotation for each decoded window
+decoded.bed			# Archaic segments with mean posterior greater than cutoff
 ```
 
+We can take a look at our files with the following R script:
+
+```R
+library(ggplot2)
+library(dplyr)
+library(tidyr)
 
 
+archaicsegments = read.table('archaic_segments_chr1.bed', header = F, 
+				  col.names = c('chrom', 'start','end','hap')) %>%
+	mutate(facet = 'Posteriorprob\nof being in archaic state')
 
 
+snps = read.table('observations.txt', header = F, col.names = c('chrom','rounded','snps','positions'), sep = '\t')  %>% 
+	mutate(facet = 'Snp density\nwithout outgroup')
+
+
+HMMdecode = read.table('decoded.All_posterior_probs.txt', header = T, sep = '\t') %>%
+	mutate(facet = 'Posteriorprob\nof being in archaic state')
+
+
+HMM_summary = read.table('decoded.Summary.txt', header =T, sep = '\t') %>%
+	filter(state == 'Archaic') %>%
+	mutate(facet = 'Posteriorprob\nof being in archaic state')
+
+
+ggplot() +
+	geom_rect(data = archaicsegments, aes(xmin = start/1000000, xmax = end/1000000, ymin = -0.2 + hap*0.1, ymax = -0.1 + hap*0.1), fill = "#009E73", color = 'black')  + 
+	geom_line(data = snps, aes(x = rounded/1000000, y = snps)) + 
+	geom_line(data = HMMdecode, aes(x = start/1000000, y = Archaic)) + 
+	geom_segment(data = HMM_summary, aes(x = (start-10000)/1000000, xend = (end+10000)/1000000, y = mean_prob, yend = mean_prob), color =  "#E69F00", size = 1) + 
+	facet_grid(facet~., scale = 'free_y', switch = 'y') + 
+	theme_bw(base_size=20) + 
+	theme(strip.background = element_blank(),
+        panel.border = element_rect(colour = "black"),
+        legend.position="bottom",
+        axis.title.y=element_blank()) +
+	xlab('Genomic position (Mb)') +
+	ggtitle('Posterior decoding of test sequence') 
+
+ggsave('Het_vs_archaic.png', width = 15, height = 7)
+```
+
+This will produce the following file (I have added extra annotation to highlight where the false positives are:
+
+![het_vs_archaic](https://user-images.githubusercontent.com/30321818/46918823-3b9f1600-cfd7-11e8-973b-c3054d1aa028.jpg)
+
+In the top panel you see the posterior probability of being in the archaic state along the 5 Mb of simulated sequence. The orange bars are the mean posterior probability of being archaic for each state. So even if some windows have a posterior probability of 1.0 its the mean of the segment that I care about. The green bars are where the actual archaic sequence is. There is a row for each haplotype but I assume that I dont know the phase in this example. In the lower panel I show the snp density. 
 
