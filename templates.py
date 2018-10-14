@@ -1,7 +1,63 @@
+import msprime as msp
 import numpy as np
 from collections import defaultdict
 import sys
 import operator
+
+#--------------------------------------------------------------------------------------
+# Msprime functions
+#--------------------------------------------------------------------------------------
+
+def remove_outgroup(ts):
+    sites = msp.SiteTable()
+    mutations = msp.MutationTable()
+    outgroup_IDs = ts.get_samples(0)
+
+    for tree in ts.trees():
+        for site in tree.sites():
+            mut = site.mutations[0]
+            pos = int(site.position)
+
+            for leaf in tree.leaves(mut.node):
+                if leaf in outgroup_IDs:
+                    break
+            else:
+                site_id = sites.add_row(
+                        position=site.position,
+                        ancestral_state=site.ancestral_state)
+                mutations.add_row(
+                    site=site_id, node=mut.node, derived_state=mut.derived_state)
+    tables = ts.dump_tables()
+    new_ts = msp.load_tables(
+        nodes=tables.nodes, edges=tables.edges, sites=sites, mutations=mutations)
+    return new_ts
+
+def combine_segs(segs, get_segs = False):
+    merged = np.empty([0, 2])
+    if len(segs) == 0:
+        if get_segs:
+            return([])
+        else:
+            return(0)
+    sorted_segs = segs[np.argsort(segs[:, 0]), :]
+    for higher in sorted_segs:
+        if len(merged) == 0:
+            merged = np.vstack([merged, higher])            
+        else:
+            lower = merged[-1, :]
+            if higher[0] <= lower[1]:
+                upper_bound = max(lower[1], higher[1])
+                merged[-1, :] = (lower[0], upper_bound) 
+            else:
+                merged = np.vstack([merged, higher])
+    if get_segs:
+        return(merged)
+    else:
+        return(np.sum(merged[:, 1] - merged[:, 0])/seq_len)
+
+#--------------------------------------------------------------------------------------
+# HMM functions
+#--------------------------------------------------------------------------------------
 
 def log_with_inf(x):
     if x == 0:
@@ -334,3 +390,156 @@ def train_on_obs_pure_baum(init_start, transitions, emissions, weights, observat
         emit[state] = np.exp(top - bottom)
 
     return (start_prob, trans, emit, forward_prob) 
+
+def MakeHMMfile(state_names, starting_probabilities, transitions, emissions, outprefix):
+    with open(outprefix + '.hmm','w') as out:
+        out.write('# State names (only used for decoding)\n')
+        out.write("states = [{states}]\n\n".format(states = ','.join(["'{}'".format(x) for x in state_names])))
+
+        out.write('# Initialization parameters (prob of staring in states)\n')
+        out.write("starting_probabilities = {values}\n\n".format(values = [x for x in starting_probabilities]))
+
+        out.write('# transition matrix\n')
+        out.write("transitions = [{values}]\n\n".format(values = ','.join(['[{}]'.format(','.join([str(y) for y in x])) for x in transitions])))
+
+        out.write('# emission matrix (poisson parameter)\n')
+        out.write("emissions = {values}\n".format(values = [x for x in emissions]))
+        
+        
+def TrainModel(infile, outprefix, model, weights_file, mutfile):
+
+    # Parameters (path to observations file, output file, model, weights file)
+
+    # Load data
+    state_names, transitions, emissions, starting_probabilities, weights, mutrates = make_hmm_from_file(model, weights_file, mutfile) 
+    obs, _, _, _ = read_observations_from_file(infile)
+
+    # Train model
+    epsilon = 0.0001
+    starting_probabilities, transitions, emissions, old_prob = train_on_obs_pure_baum(starting_probabilities, transitions, emissions, weights, obs, mutrates)
+
+    with open(outprefix + '.log','w') as out:
+
+        out.write('name\titeration\tstate\tvalue\tcomment\tmodel\n')
+
+        for i in range(1000):
+
+            transitions = log_with_inf_array(transitions)
+            starting_probabilities, transitions, emissions, new_prob = train_on_obs_pure_baum(starting_probabilities, transitions, emissions, weights, obs, mutrates)
+            
+            print 'doing iteration {0} with old prob {1} and new prob {2}'.format(i, old_prob, new_prob)
+
+
+            # Report emission values, transition values and likelihood of sequence
+            out.write('{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n'.format(infile, i, 1,new_prob, 'forward.probability', model))
+
+            for state in range(len(state_names)):
+                out.write('{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n'.format(infile, i, state, emissions[state],'emission.state.{}'.format(state+1), model))
+            
+            for from_state in  range(len(state_names)):
+                for to_state in  range(len(state_names)):
+                    out.write('{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n'.format(infile, i, state, transitions[from_state][to_state],'transition.state.{0}.to.{1}'.format(from_state+1,to_state+1), model))
+
+            out.flush()
+
+            if new_prob - old_prob < epsilon:        
+                break   
+
+
+            old_prob = new_prob
+
+
+    # Write the optimal parameters
+    with open(outprefix + '.hmm','w') as out:
+        out.write('# State names (only used for decoding)\n')
+        out.write("states = [{states}]\n\n".format(states = ','.join(["'{}'".format(x) for x in state_names])))
+
+        out.write('# Initialization parameters (prob of staring in states)\n')
+        out.write("starting_probabilities = {values}\n\n".format(values = [x for x in starting_probabilities]))
+
+        out.write('# transition matrix\n')
+        out.write("transitions = [{values}]\n\n".format(values = ','.join(['[{}]'.format(','.join([str(y) for y in x])) for x in transitions])))
+
+        out.write('# emission matrix (poisson parameter)\n')
+        out.write("emissions = {values}\n".format(values = [x for x in emissions]))
+
+    return 0
+
+
+
+def Decode(infile, outprefix, model, weights_file, mutfile, window_size, cutoff):
+    
+    # Parameters (path to observations file, output file, model, weights file)
+    window_size = int(window_size)
+
+
+    # Load data
+    state_names, transitions, emissions, starting_probabilities, weights, mutrates = make_hmm_from_file(model, weights_file, mutfile) 
+    obs, chroms, starts, variants = read_observations_from_file(infile)
+
+
+    # Posterior decode the file
+    post_seq = Posterior_decoding(starting_probabilities, transitions, emissions, weights, obs, mutrates)
+
+    with open(outprefix + '.All_posterior_probs.txt','w') as posterior_sequence, open(outprefix + '.Summary.txt','w') as summary, open(outprefix + '.bed','w') as outbed: 
+        
+        previos_seg = ''
+        previous_chrom = ''
+
+        counter = 1
+        snp_counter = 0
+        total_prob = 0.0
+        
+        start = 0
+        end = 0
+
+        # Make headers
+        summary.write('name\tchrom\tstart\tend\tlength\tstate\tsnps\tmean_prob\n')
+        posterior_sequence.write('chrom\tstart\tobservations\tvariants\tMostlikely\t{}\n'.format('\t'.join(state_names)))
+
+
+
+        for i, (x,v, chrom, current_start, var) in enumerate(zip(obs, post_seq, chroms, starts, variants)):
+            index, value = max(enumerate([float(y) for y in v]), key=operator.itemgetter(1))
+            posterior_sequence.write('{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n'.format(chrom, current_start, x, var, state_names[index], '\t'.join(v) ))
+
+            snps = x
+            current_seg = state_names[index]       
+
+            if i > 0:
+
+                # Extend block
+                if current_seg == previos_seg and chrom == previous_chrom:
+                    counter += 1
+                    snp_counter += int(snps)
+                    total_prob += value
+                    end = current_start
+
+                # Begin new block
+                if current_seg != previos_seg or chrom != previous_chrom:
+
+                    mean_prob = total_prob / counter
+                    summary.write('{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\n'.format(outprefix, previous_chrom, start, end, end - start + window_size, previos_seg, snp_counter, mean_prob)) 
+                        
+                    if previos_seg == 'Archaic' and mean_prob > cutoff:
+                        outbed.write('chr{0}\t{1}\t{2}\n'.format(previous_chrom, start, end))
+
+
+                    counter = 1
+                    start = current_start
+                    snp_counter = int(snps)
+                    total_prob = value
+
+
+            previos_seg = current_seg
+            previous_chrom = chrom
+
+        mean_prob = total_prob / counter
+        summary.write('{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\n'.format(outprefix, previous_chrom, start, end, end - start + window_size, previos_seg, snp_counter, mean_prob))       
+        if previos_seg == 'Archaic' and mean_prob > cutoff:
+            outbed.write('chr{0}\t{1}\t{2}\n'.format(previous_chrom, start, end))
+
+        return 0       
+
+
+
