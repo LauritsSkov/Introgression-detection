@@ -365,5 +365,6 @@ This will produce the following file (I have added extra annotation to highlight
 
 ![het_vs_archaic](https://user-images.githubusercontent.com/30321818/46918823-3b9f1600-cfd7-11e8-973b-c3054d1aa028.jpg)
 
-In the top panel you see the posterior probability of being in the archaic state along the 5 Mb of simulated sequence. The orange bars are the mean posterior probability of being archaic for each state. So even if some windows have a posterior probability of 1.0 its the mean of the segment that I care about. The green bars are where the actual archaic sequence is. There is a row for each haplotype but I assume that I dont know the phase in this example. In the lower panel I show the snp density. 
+In the top panel you see the posterior probability of being in the archaic state along the 5 Mb of simulated sequence. The orange bars are the mean posterior probability of being archaic for each state. So even if some windows have a posterior probability of 1.0 its the mean of the segment that I care about. The reason we have an precision of almost 100 % is that the false positives are filtered out because their mean posterior probability is less than our cutoff of 0.9. 
+The green bars are where the actual archaic sequence is. There is a row for each haplotype but I assume that I dont know the phase in this example. In the lower panel I show the snp density. 
 
