@@ -67,7 +67,7 @@ T_europa_asia = 41997 / gen_time
 T_bottlenecks = 100
 
 # Admixture times and proportions from archaic humans
-admixtureproportion = 5
+admixtureproportion = 5 #(in percent)
 T_GF_DE = 54000 / gen_time
 
 
@@ -128,6 +128,11 @@ demographic_events = [
 #map_file = 'Recombination_map/genetic_map_GRCh37_chr{}.txt'.format(chrom)
 #recomb_map = msp.RecombinationMap.read_hapmap(map_file)
 
+
+print '-'*40
+print 'Simulating sequences {} haplotypes from ingroup and {} haplotypes from outgroup...'.format(n_ingroup, n_outgroup) 
+print '-'*40
+
 ts = msp.simulate(
     samples = samples,
     population_configurations = population_configurations,
@@ -144,19 +149,21 @@ ts = msp.simulate(
     record_migrations = True
 )
 
-
-
-
 #--------------------------------------------------------------------------------------
 # Get archaic segments
 #--------------------------------------------------------------------------------------
+
+print '-'*40
+print 'Finding introgressed archaic sequences and making observations file...'
+print '-'*40
+
+
 
 # Keep track of which segments are actually introgressed (in this case from pop 3 into pop 1)
 Testpopulation = ts.get_samples(1)
 AF_ids = ts.get_samples(0)
 
 de_seg = {i: [] for i in Testpopulation}
-
 
 for mr in ts.migrations():
     if mr.source == 1 and mr.dest == 3:
@@ -177,10 +184,6 @@ with open('archaic_segments_chr{}.bed'.format(chrom),'w') as out:
     for haplotype, archaic_segments in enumerate(true_de_segs):
         for archaic_segment in archaic_segments:
             out.write('chr{}\t{}\t{}\t{}\n'.format(chrom, int(archaic_segment[0]), int(archaic_segment[1]), haplotype))
-
-
-
-
 
 #--------------------------------------------------------------------------------------
 # Get observation file, weights file and mutrates file
@@ -211,8 +214,6 @@ with open('weights.txt','w') as w, open('mutrates.txt','w') as mut, open('observ
 
 
 
-
-
 #--------------------------------------------------------------------------------------
 # Train and decode the HMM
 #--------------------------------------------------------------------------------------
@@ -225,19 +226,30 @@ emissions = [0.01, 0.1]
 
 MakeHMMfile(state_names = states, starting_probabilities = starting_probabilities, transitions = transitions, emissions = emissions, outprefix = 'myhmm')
 
+print '-'*40
+print 'Started training the model...'
+print '-'*40
+
 # Train the HMM
 TrainModel(infile = 'observations.txt', outprefix = 'trained', model = 'myhmm.hmm', weights_file = 'weights.txt', mutfile = 'mutrates.txt')
+
+print '-'*40
+print 'Started decoding the model...'
+print '-'*40
+
 
 # Decode the HMM
 cutoff = 0.9
 Decode(infile = 'observations.txt', outprefix = 'decoded', model = 'trained.hmm', weights_file = 'weights.txt', mutfile = 'mutrates.txt', window_size = window_size, cutoff = cutoff)
 
 
-
-
 #--------------------------------------------------------------------------------------
 # Checking accuracy
 #--------------------------------------------------------------------------------------
+
+print '-'*40
+print 'Checking accuracy of the model with a posterior cutoff at {}...'.format(cutoff)
+print '-'*40
 
 truth = pybedtools.BedTool('archaic_segments_chr{}.txt'.format(chrom)).sort().merge()
 HMM =  pybedtools.BedTool('decoded.bed').sort().merge()
