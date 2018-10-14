@@ -224,14 +224,16 @@ starting_probabilities = [0.98, 0.02]
 transitions = [[0.999,1-0.999],[0.02,0.980]]
 emissions = [0.01, 0.1]
 
-MakeHMMfile(state_names = states, starting_probabilities = starting_probabilities, transitions = transitions, emissions = emissions, outprefix = 'myhmm')
+MakeHMMfile(state_names = states, starting_probabilities = starting_probabilities, 
+	    transitions = transitions, emissions = emissions, outprefix = 'myhmm')
 
 print '-'*40
 print 'Started training the model...'
 print '-'*40
 
 # Train the HMM
-TrainModel(infile = 'observations.txt', outprefix = 'trained', model = 'myhmm.hmm', weights_file = 'weights.txt', mutfile = 'mutrates.txt')
+TrainModel(infile = 'observations.txt', outprefix = 'trained', model = 'myhmm.hmm', 
+	   weights_file = 'weights.txt', mutfile = 'mutrates.txt')
 
 print '-'*40
 print 'Started decoding the model...'
@@ -240,7 +242,9 @@ print '-'*40
 
 # Decode the HMM
 cutoff = 0.9
-Decode(infile = 'observations.txt', outprefix = 'decoded', model = 'trained.hmm', weights_file = 'weights.txt', mutfile = 'mutrates.txt', window_size = window_size, cutoff = cutoff)
+Decode(infile = 'observations.txt', outprefix = 'decoded', model = 'trained.hmm', 
+		 weights_file = 'weights.txt', mutfile = 'mutrates.txt', 
+		 window_size = window_size, cutoff = cutoff)
 
 
 #--------------------------------------------------------------------------------------
