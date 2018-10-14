@@ -35,6 +35,59 @@ import pybedtools
 from templates import *
 
 #--------------------------------------------------------------------------------------
+# Msprime functions
+#--------------------------------------------------------------------------------------
+
+def remove_outgroup(ts):
+    sites = msp.SiteTable()
+    mutations = msp.MutationTable()
+    outgroup_IDs = ts.get_samples(0)
+
+    for tree in ts.trees():
+        for site in tree.sites():
+            mut = site.mutations[0]
+            pos = int(site.position)
+
+            for leaf in tree.leaves(mut.node):
+                if leaf in outgroup_IDs:
+                    break
+            else:
+                site_id = sites.add_row(
+                        position=site.position,
+                        ancestral_state=site.ancestral_state)
+                mutations.add_row(
+                    site=site_id, node=mut.node, derived_state=mut.derived_state)
+    tables = ts.dump_tables()
+    new_ts = msp.load_tables(
+        nodes=tables.nodes, edges=tables.edges, sites=sites, mutations=mutations)
+    return new_ts
+
+def combine_segs(segs, get_segs = False):
+    merged = np.empty([0, 2])
+    if len(segs) == 0:
+        if get_segs:
+            return([])
+        else:
+            return(0)
+    sorted_segs = segs[np.argsort(segs[:, 0]), :]
+    for higher in sorted_segs:
+        if len(merged) == 0:
+            merged = np.vstack([merged, higher])            
+        else:
+            lower = merged[-1, :]
+            if higher[0] <= lower[1]:
+                upper_bound = max(lower[1], higher[1])
+                merged[-1, :] = (lower[0], upper_bound) 
+            else:
+                merged = np.vstack([merged, higher])
+    if get_segs:
+        return(merged)
+    else:
+        return(np.sum(merged[:, 1] - merged[:, 0])/seq_len)
+
+
+
+#--------------------------------------------------------------------------------------
 # Simulate
 #--------------------------------------------------------------------------------------
 
