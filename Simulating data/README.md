@@ -261,3 +261,64 @@ true_positives = sum([x.stop - x.start for x in HMM.intersect(truth)])
 print 'Precision =', true_positives/float(total_HMM)*100
 print 'Sensitivity =', true_positives/float(truth_seq)*100
 ```
+
+This will produce the output:
+
+```bash
+----------------------------------------
+Simulating sequences 2 haplotypes from ingroup and 100 haplotypes from outgroup...
+----------------------------------------
+----------------------------------------
+Finding introgressed archaic sequences and making observations file...
+----------------------------------------
+----------------------------------------
+Started training the model...
+----------------------------------------
+doing iteration 0 with old prob -1651.34953557 and new prob -1559.08083633
+doing iteration 1 with old prob -1559.08083633 and new prob -1534.96558982
+doing iteration 2 with old prob -1534.96558982 and new prob -1506.86823363
+doing iteration 3 with old prob -1506.86823363 and new prob -1477.00151252
+doing iteration 4 with old prob -1477.00151252 and new prob -1456.17059588
+doing iteration 5 with old prob -1456.17059588 and new prob -1448.96996157
+doing iteration 6 with old prob -1448.96996157 and new prob -1447.36328234
+doing iteration 7 with old prob -1447.36328234 and new prob -1447.03259537
+doing iteration 8 with old prob -1447.03259537 and new prob -1446.95493837
+doing iteration 9 with old prob -1446.95493837 and new prob -1446.93214369
+doing iteration 10 with old prob -1446.93214369 and new prob -1446.92432043
+doing iteration 11 with old prob -1446.92432043 and new prob -1446.92145221
+doing iteration 12 with old prob -1446.92145221 and new prob -1446.92038886
+doing iteration 13 with old prob -1446.92038886 and new prob -1446.92000314
+doing iteration 14 with old prob -1446.92000314 and new prob -1446.9198709
+doing iteration 15 with old prob -1446.9198709 and new prob -1446.919831
+----------------------------------------
+Started decoding the model...
+----------------------------------------
+----------------------------------------
+Checking accuracy of the model with a posterior cutoff at 0.9...
+----------------------------------------
+Precision = 99.6889830508
+Sensitivity = 83.4551820281
+
+```
+This means that 99.6 of the sequence that the model finds to be archaic with a posterior probability cutoff of 0.9 in this particular scenario is actually archaic. This is of course very nice but keep in mind that we are simulating with a constant recombination rate, no missing data and a constant mutation rate. Real data will likeli be much messier, so this is an absolute upper bound for the models performance. 
+
+When you ran this script you might also have noticed that A LOT of output files are generated. These are:
+
+```bash
+archaic_segments_chr1.bed   	# The simulated introgressed segments    
+haplo_chr1.txt			# Observations (but one column for each haplotype)		
+observations.txt		# Observations 
+mutrates.txt			# mutation rates (all are 1)
+weights.txt			# weights file (all are 1)
+
+myhmm.hmm  			# Initial guess for HMM parameters
+trained.hmm			# Trained HMM parameters
+decoded.Summary.txt        	# Decoded summary file
+decoded.All_posterior_probs.txt # annotation for each decoded window
+```
+
+
+
+
+
+
