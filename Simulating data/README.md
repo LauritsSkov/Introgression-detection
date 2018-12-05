@@ -308,7 +308,7 @@ print '-'*40
 print 'Checking accuracy of the model with a posterior cutoff at {}...'.format(cutoff)
 print '-'*40
 
-truth = pybedtools.BedTool('archaic_segments_chr{}.txt'.format(chrom)).sort().merge()
+truth = pybedtools.BedTool('archaic_segments_chr{}.bed'.format(chrom)).sort().merge()
 HMM =  pybedtools.BedTool('decoded.bed').sort().merge()
 
 total_HMM = sum([x.stop - x.start for x in (HMM)])
