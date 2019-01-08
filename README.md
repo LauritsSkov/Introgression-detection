@@ -584,4 +584,4 @@ If you have any questions about the use of the scripts, if you find errors or if
 
 lskov@cs.au.dk
 
-
+[![Analytics](https://ga-beacon.appspot.com/UA-131920934-1/welcome-page)](https://github.com/LauritsSkov/Introgression-detection)
