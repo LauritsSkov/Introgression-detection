@@ -583,5 +583,3 @@ And that is it! Now you have run the model and gotten a set of parameters that y
 If you have any questions about the use of the scripts, if you find errors or if you have feedback you can contact my here (make an issue) or write to:
 
 lskov@cs.au.dk
-
-[![Analytics](https://ga-beacon.appspot.com/UA-131920934-1/welcome-page)](https://github.com/LauritsSkov/Introgression-detection)
