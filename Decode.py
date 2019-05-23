@@ -13,7 +13,7 @@ obs, chroms, starts, variants = read_observations_from_file(infile)
 
 
 # Posterior decode the file
-post_seq = Posterior_decoding(starting_probabilities, transitions, emissions, weights, obs, mutrates)
+post_seq = Forward_backward(starting_probabilities, transitions, emissions, weights, obs, mutrates)
 
 with open(outprefix + '.All_posterior_probs.txt','w') as posterior_sequence, open(outprefix + '.Summary.txt','w') as summary: 
     
@@ -33,9 +33,11 @@ with open(outprefix + '.All_posterior_probs.txt','w') as posterior_sequence, ope
 
 
 
-    for i, (x,v, chrom, current_start, var) in enumerate(zip(obs, post_seq, chroms, starts, variants)):
+    for i, (x,chrom, current_start, var) in enumerate(zip(obs, chroms, starts, variants)):
+
+        v = post_seq[:,i]
         index, value = max(enumerate([float(y) for y in v]), key=operator.itemgetter(1))
-        posterior_sequence.write('{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n'.format(chrom, current_start, x, var, state_names[index], '\t'.join(v) ))
+        posterior_sequence.write('{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n'.format(chrom, current_start, x, var, state_names[index], '\t'.join([str(val) for val in v]) ))
 
         snps = x
         current_seg = state_names[index]       
@@ -64,5 +66,7 @@ with open(outprefix + '.All_posterior_probs.txt','w') as posterior_sequence, ope
         previos_seg = current_seg
         previous_chrom = chrom
 
+
+
     mean_prob = total_prob / counter
-    summary.write('{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\n'.format(outprefix, previous_chrom, start, end, end - start + window_size, previos_seg, snp_counter, mean_prob))       
+    summary.write('{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\n'.format(outprefix, previous_chrom, start, end, end - start + window_size, previos_seg, snp_counter, mean_prob)) 
