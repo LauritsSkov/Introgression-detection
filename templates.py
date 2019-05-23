@@ -1,12 +1,27 @@
 import numpy as np
-from collections import defaultdict
 import sys
 import operator
+import math
+from numba import jit
+from collections import defaultdict
 
-#--------------------------------------------------------------------------------------
-# HMM functions
-#--------------------------------------------------------------------------------------
 
+def MakeHMMfile(state_names, starting_probabilities, transitions, emissions, outprefix):
+    with open(outprefix + '.hmm','w') as out:
+        out.write('# State names (only used for decoding)\n')
+        out.write("states = [{states}]\n\n".format(states = ','.join(["'{}'".format(x) for x in state_names])))
+
+        out.write('# Initialization parameters (prob of staring in states)\n')
+        out.write("starting_probabilities = {values}\n\n".format(values = [x for x in starting_probabilities]))
+
+        out.write('# transition matrix\n')
+        out.write("transitions = [{values}]\n\n".format(values = ','.join(['[{}]'.format(','.join([str(y) for y in x])) for x in transitions])))
+
+        out.write('# emission matrix (poisson parameter)\n')
+        out.write("emissions = {values}\n".format(values = [x for x in emissions]))
+
+
+@jit
 def log_with_inf(x):
     if x == 0:
         return -np.inf
@@ -15,18 +30,7 @@ def log_with_inf(x):
 
 
 
-def add_in_log_space(y):    
-
-    if len(set(y)) == 1 and -np.inf in y: 
-        return -np.inf
-
-    else:
-        x_star = max(y)  
-        result = x_star + np.log(np.exp(y - x_star).sum())
-
-
-    return result
-
+@jit
 def poisonprob(k, lamb):
     a = lamb**k
     b = np.exp(-lamb)
@@ -34,6 +38,18 @@ def poisonprob(k, lamb):
     d = a * b / c
     return d 
 
+
+@jit(nopython=True)
+def add_in_log_space(y):    
+
+    if len(set(y)) == 1 and np.any(y == -np.inf): 
+        result = -np.inf
+    else:
+
+        x_star = np.max(y)  
+        result = x_star + np.log(np.exp(y - x_star).sum())
+
+    return result
 
 def log_with_inf_array(matrix):
 
@@ -43,7 +59,6 @@ def log_with_inf_array(matrix):
             res[rows,col] = log_with_inf(matrix[rows,col])
 
     return res
-
 
 
 
@@ -78,7 +93,8 @@ def make_hmm_from_file(markov_param, weights_file, mut_file):
         starting_probabilities[i] = log_with_inf(start_prob)
 
 
-    return (states, np.array(transitions), emissions, starting_probabilities, weights, mutrates)
+    return (states, np.array(transitions), np.array(emissions), np.array(starting_probabilities), np.array(weights), np.array(mutrates))
+
 
 def read_observations_from_file(f):
     obs = []
@@ -90,224 +106,163 @@ def read_observations_from_file(f):
             chroms.append(line.strip().split()[0])
             starts.append(int(line.strip().split()[1]))
             obs.append(int(line.strip().split()[2]))
-            
+
             if line.strip().split()[2] != '0':
                 variants.append(line.strip().split()[3])
             else:
                 variants.append('')
 
-    return obs, chroms, starts, variants
+    return np.array(obs), chroms, starts, variants
 
 
 
-def GET_forward_prob(init_start, transitions, emissions, weights, observations, mutrates):
+
+
+@jit(nopython=True)
+def Forward_prob(init_start, transitions, emissions, observations, probabilities, state_nums, number_observations, forwards_in):
     """
     Returns the probability of seeing the given `observations` sequence,
     using the Forward algorithm.
     """
-    fractorials = {}
-    frac_sum = 0
 
-    for i in range(max(observations)+1):
-
-        if i < 2:
-
-            frac_sum = 0
-        elif i == 2:
-            frac_sum = 0
-            frac_sum += log_with_inf(i)
-        else:
-            frac_sum += log_with_inf(i) 
-
-        fractorials[i] = frac_sum
-    
-
-    state_nums = range(len(init_start))
-    number_observations = len(observations)
-
-    # Make and initialise forwards matrix
-    forwards = np.zeros( (len(state_nums), number_observations) ) 
-
-
-    for state in state_nums:
-        forwards[state][0] = init_start[state]  + log_with_inf(poisonprob(observations[0],emissions[state]))
-
-
-    # Fill out the matrix (we already filled out the first state)
     for t in range(1, number_observations): 
-        for state in state_nums:            
+        for state in state_nums: 
+            toadd = np.zeros(len(state_nums))
+            for state2 in state_nums:
+               toadd[state2] = transitions[state2,state] + probabilities[state,t] + forwards_in[state2,t-1]
 
-            to_add = np.zeros(len(state_nums))
-            calculate_poisson = - emissions[state] * weights[t] * mutrates[t] - fractorials[observations[t]] 
-            if observations[t] != 0:                
-                calculate_poisson += log_with_inf(emissions[state] * weights[t] * mutrates[t])*observations[t]
+            forwards_in[state,t] = add_in_log_space(toadd)
 
-            for i,old_state in enumerate(state_nums):
-                to_add[i] = transitions[old_state][state] + calculate_poisson + forwards[old_state][t-1]
+    toadd = np.zeros(len(init_start))
+    for state in state_nums:
+        toadd[state] = forwards_in[state,-1] 
 
-            if len(set(to_add)) == 1 and -np.inf in to_add:
-                forwards[state][t] =  -np.inf
-            else:
-                x_star = max(to_add)  
-                forwards[state][t] = x_star + np.log(sum(np.exp(to_add - x_star))) 
+    final = add_in_log_space(toadd)   
 
-    to_add = np.zeros(len(state_nums))
-    for i,state in enumerate(state_nums):
-        to_add[i] = forwards[state][-1] 
+    return (final, forwards_in)
 
 
-    final = add_in_log_space(to_add)
 
-    return (final, forwards)
 
-def GET_backward_prob(init_start, transitions, emissions, weights, observations, mutrates):
+
+# weights, mutrates in prob also add factorials
+
+@jit(nopython=True)
+def Backward_prob(init_start, transitions, emissions, observations, probabilities, state_nums, number_observations, backwards, reversedlist):
     """
     Returns the probability of seeing the given `observations` sequence,
     using the Backward algorithm.
     """    
 
-    fractorials = {}
-    frac_sum = 0
-    for i in range(max(observations)+1):
-
-        if i < 2:
-
-            frac_sum = 0
-        elif i == 2:
-            frac_sum = 0
-            frac_sum += log_with_inf(i)
-        else:
-            frac_sum += log_with_inf(i) 
-
-        fractorials[i] = frac_sum
-
-    state_nums = range(len(init_start))
-    number_observations = len(observations)
-
-
-    # Make and initialise backwards matrix
-    backwards = np.zeros( (len(state_nums), number_observations) ) 
-
     # Fill out the matrix
-    for t in reversed(range(1, number_observations)):
+    for t in reversedlist:
         for state in state_nums:
-            to_add = np.zeros(len(state_nums))
 
-            for i,next_state in enumerate(state_nums):
-                calculate_poisson = - emissions[next_state] * weights[t] * mutrates[t] - fractorials[observations[t]] 
-                if observations[t] != 0:
-                    calculate_poisson += log_with_inf(emissions[next_state] * weights[t] * mutrates[t])*observations[t]
+            toadd = np.zeros(len(state_nums))
+            for state2 in state_nums:
+               toadd[state2] = transitions[state,state2] + probabilities[state2,t] + backwards[state2,t]
 
-                to_add[i] = transitions[state, next_state] + calculate_poisson + backwards[next_state][t] 
-  
-            if len(set(to_add)) == 1 and -np.inf in to_add: 
-                backwards[state][t-1] =  -np.inf
+            backwards[state,t-1] = add_in_log_space(toadd)
 
-            else:
-                x_star = max(to_add)
-                backwards[state][t-1] = x_star + np.log(sum(np.exp(to_add - x_star))) 
+    toadd = np.zeros(len(init_start))
+    for state in state_nums:
+        toadd[state] = init_start[state] + probabilities[state,0] + backwards[state,0]
 
-    to_add = np.zeros(len(state_nums))
-    for i,state in enumerate(state_nums):
-        to_add[i] = init_start[state] + log_with_inf(poisonprob(observations[0],emissions[state])) + backwards[state][0]
-
+    final = add_in_log_space(toadd)
     
-
-    final = add_in_log_space(to_add)
-
     return (final, backwards) 
 
 
-
-
-def Posterior_decoding(init_start, transitions, emissions, weights, observations, mutrates):
+def Forward_backward(init_start, transitions, emissions, weights, observations, mutrates):
     """
     Posterior decoding, using the forward-backward algorithm. 
     """
+
+    fractorials = np.zeros(len(observations))
+    for i, obs in enumerate(observations):
+        fractorials[i] = np.log(math.factorial(obs))
+
     number_observations = len(observations)
-    forward_prob,  forwards  = GET_forward_prob(init_start, transitions, emissions, weights, observations, mutrates)
-    backward_prob, backwards = GET_backward_prob(init_start, transitions, emissions, weights, observations, mutrates)
     state_nums = range(len(init_start))
 
-    results = []
+    probabilities = np.zeros( (len(state_nums), number_observations) ) 
+    for state in state_nums: 
+        probabilities[state,:] = - (emissions[state] * weights * mutrates) - fractorials +  np.log( (emissions[state] * weights * mutrates)**observations )
 
-    for t in range(number_observations):
-        results.append([str(np.exp(forwards[state][t] + backwards[state][t] - forward_prob)) for state in state_nums])
+    forwards_in = np.zeros( (len(init_start), number_observations) ) 
+    forwards_in[:,0] = init_start  + probabilities[:,0] 
+    backwards_in = np.zeros( (len(init_start), number_observations) ) 
 
+    forward_prob,  forwards  = Forward_prob(init_start, transitions, emissions, observations, probabilities, state_nums, number_observations, forwards_in)
+
+    reversedlist = [x for x  in range(number_observations-1, 0 ,-1)]
+    backward_prob, backwards = Backward_prob(init_start, transitions, emissions, observations, probabilities, state_nums, number_observations, backwards_in, reversedlist)
+
+
+    results = np.exp(forwards + backwards - forward_prob)
 
     return results
 
 
+@jit(nopython=True)
+def makeprobability_of_transition_matrix(state_nums, number_observations,forwards,transitions,probabilities,backwards,forward_prob):
 
+    pot = np.zeros( (len(state_nums), len(state_nums), number_observations - 1)  )
+    for state1 in state_nums:
+        for t in range(number_observations-1):
+            pot[state1,:,t] = forwards[state1,t]  + transitions[state1, :] + probabilities[:,t+1] + backwards[:,t+1] - forward_prob
 
+    return pot
 
-def train_on_obs_pure_baum(init_start, transitions, emissions, weights, observations, mutrates):
+#@profile
+def TrainBaumWelsch(init_start, transitions, emissions, weights, observations, mutrates):
     """
     Trains the model once, using the forward-backward algorithm. 
     """
 
-    fractorials = {}
-    frac_sum = 0
-    for i in range(max(observations)+1):
-
-        if i < 2:
-
-            frac_sum = 0
-        elif i == 2:
-            frac_sum = 0
-            frac_sum += log_with_inf(i)
-        else:
-            frac_sum += log_with_inf(i) 
-
-        fractorials[i] = frac_sum 
+    fractorials = np.zeros(len(observations))
+    for i, obs in enumerate(observations):
+        fractorials[i] = np.log(math.factorial(obs))
 
     number_observations = len(observations)
-    forward_prob,  forwards  = GET_forward_prob(init_start, transitions, emissions, weights, observations, mutrates)
-    backward_prob, backwards = GET_backward_prob(init_start, transitions, emissions, weights, observations, mutrates)
-
-
     state_nums = range(len(init_start))
+
+    probabilities = np.zeros( (len(state_nums), number_observations) ) 
+    for state in state_nums: 
+        probabilities[state,:] = - (emissions[state] * weights * mutrates) - fractorials +  np.log( (emissions[state] * weights * mutrates)**observations )
+
+
+    # Make and initialise forwards matrix
+    forwards_in = np.zeros( (len(init_start), number_observations) ) 
+    forwards_in[:,0] = init_start  + probabilities[:,0] #np.log(poisonprob(observations[0],emissions))
+    backwards_in = np.zeros( (len(init_start), number_observations) ) 
+
     
-    posat = np.zeros( (len(state_nums), number_observations) )  
-    for state in state_nums:
-        for t in range(number_observations):
-            posat[state][t] = forwards[state][t] + backwards[state][t] - forward_prob
+    forward_prob,  forwards  = Forward_prob(init_start, transitions, emissions, observations, probabilities, state_nums, number_observations, forwards_in)
 
+    reversedlist = [x for x  in range(number_observations-1, 0 ,-1)]
+    backward_prob, backwards = Backward_prob(init_start, transitions, emissions, observations, probabilities, state_nums, number_observations, backwards_in, reversedlist)
 
-
-    pot = np.zeros( (len(state_nums), len(state_nums), number_observations - 1)  )
-    for state1 in state_nums:
-        for state2 in state_nums:
-
-            for t in range(number_observations-1):
-
-                calculate_poisson = - emissions[state2] * weights[t+1] * mutrates[t+1] - fractorials[observations[t+1]] 
-
-                if observations[t+1] != 0:
-                    calculate_poisson += log_with_inf(emissions[state2] * weights[t+1] * mutrates[t+1])*observations[t+1]
-
-                pot[state1][state2][t] = forwards[state1][t]  + transitions[state1, state2] + calculate_poisson + backwards[state2][t+1] - forward_prob
-
+    posat = forwards + backwards - forward_prob 
+    pot = makeprobability_of_transition_matrix(state_nums, number_observations,forwards,transitions,probabilities,backwards,forward_prob)
 
 
     # Initial starting probabilities
-    start_prob = np.zeros((len(init_start)))
-
-    for state in state_nums:
-        start_prob[state] = np.exp(posat[state][0])
-
-
+    normalize = np.exp(posat).sum()
+    start_prob = np.zeros(len(state_nums))
 
     # Transition probs
     trans = np.zeros((len(init_start), len(init_start)))            
 
     for state in state_nums:
-        state_prob = add_in_log_space(posat[state])
+        state_prob = np.logaddexp.reduce(posat[state])
+        start_prob[state] = np.exp(state_prob) / normalize
+
         for oth in state_nums:
-            trans[state][oth] = np.exp(add_in_log_space(pot[state][oth]) - state_prob) 
+            trans[state,oth] = np.exp(np.logaddexp.reduce(pot[state,oth]) - state_prob) 
 
     for i,row in enumerate(trans):
-        old_sum = sum(row)
+        old_sum = row.sum()
 
         for j,col in enumerate(row):
             if old_sum == 0:
@@ -319,41 +274,14 @@ def train_on_obs_pure_baum(init_start, transitions, emissions, weights, observat
     # Emissions probs
     emit = np.zeros((len(init_start)))
 
-    poissons = defaultdict(float)
-
     for state in state_nums:
-
-        top = np.zeros(number_observations)
-        bottom = np.zeros(number_observations)   
-
-        top[0] = -np.inf
-        bottom[0] = -np.inf        
-        for t in range(number_observations):  
-  
-            top[t] = forwards[state][t] + backwards[state][t] + log_with_inf(observations[t])
-            bottom[t] = forwards[state][t] + backwards[state][t] + log_with_inf(weights[t] * mutrates[t]) 
-
-        top = add_in_log_space(top)
-        bottom = add_in_log_space(bottom)
+        top = np.logaddexp.reduce(forwards[state,:] + backwards[state,:] + np.log(observations))
+        bottom = np.logaddexp.reduce(forwards[state,:] + backwards[state,:] + np.log(weights * mutrates) )
         emit[state] = np.exp(top - bottom)
 
     return (start_prob, trans, emit, forward_prob) 
 
-def MakeHMMfile(state_names, starting_probabilities, transitions, emissions, outprefix):
-    with open(outprefix + '.hmm','w') as out:
-        out.write('# State names (only used for decoding)\n')
-        out.write("states = [{states}]\n\n".format(states = ','.join(["'{}'".format(x) for x in state_names])))
 
-        out.write('# Initialization parameters (prob of staring in states)\n')
-        out.write("starting_probabilities = {values}\n\n".format(values = [x for x in starting_probabilities]))
-
-        out.write('# transition matrix\n')
-        out.write("transitions = [{values}]\n\n".format(values = ','.join(['[{}]'.format(','.join([str(y) for y in x])) for x in transitions])))
-
-        out.write('# emission matrix (poisson parameter)\n')
-        out.write("emissions = {values}\n".format(values = [x for x in emissions]))
-        
-        
 def TrainModel(infile, outprefix, model, weights_file, mutfile):
 
     # Parameters (path to observations file, output file, model, weights file)
@@ -364,7 +292,7 @@ def TrainModel(infile, outprefix, model, weights_file, mutfile):
 
     # Train model
     epsilon = 0.0001
-    starting_probabilities, transitions, emissions, old_prob = train_on_obs_pure_baum(starting_probabilities, transitions, emissions, weights, obs, mutrates)
+    starting_probabilities, transitions, emissions, old_prob = TrainBaumWelsch(starting_probabilities, transitions, emissions, weights, obs, mutrates)
 
     with open(outprefix + '.log','w') as out:
 
@@ -373,7 +301,7 @@ def TrainModel(infile, outprefix, model, weights_file, mutfile):
         for i in range(1000):
 
             transitions = log_with_inf_array(transitions)
-            starting_probabilities, transitions, emissions, new_prob = train_on_obs_pure_baum(starting_probabilities, transitions, emissions, weights, obs, mutrates)
+            starting_probabilities, transitions, emissions, new_prob = TrainBaumWelsch(starting_probabilities, transitions, emissions, weights, obs, mutrates)
             
             print 'doing iteration {0} with old prob {1} and new prob {2}'.format(i, old_prob, new_prob)
 
@@ -427,7 +355,7 @@ def Decode(infile, outprefix, model, weights_file, mutfile, window_size, cutoff)
 
 
     # Posterior decode the file
-    post_seq = Posterior_decoding(starting_probabilities, transitions, emissions, weights, obs, mutrates)
+    post_seq = Forward_backward(starting_probabilities, transitions, emissions, weights, obs, mutrates)
 
     with open(outprefix + '.All_posterior_probs.txt','w') as posterior_sequence, open(outprefix + '.Summary.txt','w') as summary, open(outprefix + '.bed','w') as outbed: 
         
@@ -447,9 +375,11 @@ def Decode(infile, outprefix, model, weights_file, mutfile, window_size, cutoff)
 
 
 
-        for i, (x,v, chrom, current_start, var) in enumerate(zip(obs, post_seq, chroms, starts, variants)):
+        for i, (x,chrom, current_start, var) in enumerate(zip(obs, chroms, starts, variants)):
+
+            v = post_seq[:,i]
             index, value = max(enumerate([float(y) for y in v]), key=operator.itemgetter(1))
-            posterior_sequence.write('{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n'.format(chrom, current_start, x, var, state_names[index], '\t'.join(v) ))
+            posterior_sequence.write('{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n'.format(chrom, current_start, x, var, state_names[index], '\t'.join([str(val) for val in v]) ))
 
             snps = x
             current_seg = state_names[index]       
@@ -487,7 +417,5 @@ def Decode(infile, outprefix, model, weights_file, mutfile, window_size, cutoff)
         if previos_seg == 'Archaic' and mean_prob > cutoff:
             outbed.write('chr{0}\t{1}\t{2}\n'.format(previous_chrom, start, end))
 
-        return 0       
-
-
+    return 0 
 
