@@ -15,12 +15,13 @@ The method is now published in PlosGenetics and can be found here: [Detecting ar
 
 
 ### Dependencies
-To run the python script you will need numpy. I am using this version of python and numpy:
+To run the python script you will need numpy. I am using this version of python, numpy and numba: Numba will speed up all the computation time by a factor of 10 or more so I highly recommend installing it! If you can't install it you can comment out all the @jit decoraters in the templates.py file
 
 ```
 # To run the HMM model
 python    version 2.7.12
 numpy     version 1.11.1
+numba     version 0.27.0 
 
 # If you want to follow my example (running on a 1000 genomes individual)
 vcftools  version 0.1.14
@@ -460,7 +461,7 @@ doing iteration 33 with old prob -328059.027316 and new prob -328059.027194
 doing iteration 34 with old prob -328059.027194 and new prob -328059.027117
 ```
 
-This took a couple of hours to run on my computer with around a Gigabyte memory. The model will create two files. One is called HG00096_trained.log where it report the parameters and likelihood of the model for each iteration and HG00096_trained.hmm which is the same format as StartingParameters.hmm (just with the parameters that optimize the likelihood).The files looks like this:
+This took a couple 10 min to run on my computer (as opposed to 2 hours without numba!) with around a Gigabyte memory. The model will create two files. One is called HG00096_trained.log where it report the parameters and likelihood of the model for each iteration and HG00096_trained.hmm which is the same format as StartingParameters.hmm (just with the parameters that optimize the likelihood).The files looks like this:
 
 ```bash
 head HG00096_trained.log
