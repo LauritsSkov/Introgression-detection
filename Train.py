@@ -9,7 +9,7 @@ obs, _, _, _ = read_observations_from_file(infile)
 
 # Train model
 epsilon = 0.0001
-starting_probabilities, transitions, emissions, old_prob = train_on_obs_pure_baum(starting_probabilities, transitions, emissions, weights, obs, mutrates)
+starting_probabilities, transitions, emissions, old_prob = TrainBaumWelsch(starting_probabilities, transitions, emissions, weights, obs, mutrates)
 
 with open(outprefix + '.log','w') as out:
 
@@ -18,7 +18,7 @@ with open(outprefix + '.log','w') as out:
     for i in range(1000):
 
         transitions = log_with_inf_array(transitions)
-        starting_probabilities, transitions, emissions, new_prob = train_on_obs_pure_baum(starting_probabilities, transitions, emissions, weights, obs, mutrates)
+        starting_probabilities, transitions, emissions, new_prob = TrainBaumWelsch(starting_probabilities, transitions, emissions, weights, obs, mutrates)
         
         print 'doing iteration {0} with old prob {1} and new prob {2}'.format(i, old_prob, new_prob)
 
