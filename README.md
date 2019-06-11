@@ -512,14 +512,14 @@ The files look like this:
 ```bash
 head HG00096_decoded.Summary.txt
 name            chrom   start   end       length    state   snps    mean_prob
-HG00096_decoded 1       0       3424000   3425000   Human   114     0.975435021019
-HG00096_decoded 1       3425000 3449000   25000     Archaic 19      0.956203499367
-HG00096_decoded 1       3450000 4259000   810000    Human   24      0.984532458656
-HG00096_decoded 1       4260000 4367000   108000    Archaic 20      0.792893841425
-HG00096_decoded 1       4368000 6142000   1775000   Human   54      0.989351192407
-HG00096_decoded 1       6143000 6150000   8000      Archaic 6       0.822766806209
-HG00096_decoded 1       6151000 9319000   3169000   Human   81      0.990871350063
-HG00096_decoded 1       9320000 9361000   42000     Archaic 10      0.853517013725
+HG00096_decoded 1       0       3425000   3425000   Human   114     0.974611296838
+HG00096_decoded 1       3425000 3450000   25000     Archaic 19      0.956203499367
+HG00096_decoded 1       3450000 4260000   810000    Human   24      0.984532458656
+HG00096_decoded 1       4260000 4368000   108000    Archaic 20      0.792893841425
+HG00096_decoded 1       4368000 6143000   1775000   Human   54      0.989351192407
+HG00096_decoded 1       6143000 6151000   8000      Archaic 6       0.822766806209
+HG00096_decoded 1       6151000 9320000   3169000   Human   81      0.990871350063
+HG00096_decoded 1       9320000 9362000   42000     Archaic 10      0.853517013725
 HG00096_decoded 1       9362000 12595000  3234000   Human   70      0.987032899434
 
 # The first 10 lines of the decoded file is not so interesting.
