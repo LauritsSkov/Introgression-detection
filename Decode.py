@@ -8,6 +8,7 @@ window_size = int(window_size)
 # Load data
 state_names, transitions, emissions, starting_probabilities, weights, mutrates = make_hmm_from_file(model, weights_file, mutfile) 
 obs, chroms, starts, variants = read_observations_from_file(infile)
+obs = Checkobsfile(obs, weights, mutrates)
 
 # Posterior decode the file
 post_seq = Forward_backward(starting_probabilities, transitions, emissions, weights, obs, mutrates)
