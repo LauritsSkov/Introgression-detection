@@ -115,7 +115,17 @@ def read_observations_from_file(f):
     return np.array(obs), chroms, starts, variants
 
 
+def Checkobsfile(obs, weights, mutrates):
+	returnobs = []
+	for index, (observation, w, m) in enumerate(zip(obs, weights, mutrates)):
 
+		if w*m == 0 and observation != 0:
+			print('warning in line {}. found {} SNPs but bin has {} mutation rate and {} called bases'.format(index,observation, m, w))
+			returnobs.append(0)
+		else:
+			returnobs.append(observation)
+
+	return np.array(returnobs)
 
 
 @jit(nopython=True)
