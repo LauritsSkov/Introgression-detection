@@ -65,8 +65,28 @@ def log_with_inf_array(matrix):
 def make_hmm_from_file(markov_param, weights_file, mut_file):
     
     with open(markov_param) as data:
-       for line in data:
-           exec(line.strip())
+	for line in data:
+		if '#' != line[0] and line != '\n':
+			# Statenames
+			if 'states' in line:
+				txt = line.strip().split('=')[1].replace("'",'').replace(' ','').replace('[','').replace(']','') 
+				states = np.array(txt.split(','))
+
+			# starting probs
+			if 'starting_probabilities' in line:
+				txt = line.strip().split('=')[1].replace('[','').replace(']','').replace(' ','')
+				starting_probabilities = np.array([float(x) for x in txt.split(',')])
+
+
+			# transversions
+			if 'transitions' in line:
+				txt = line.strip().split('=')[1].replace('[','').replace(']','').replace(' ','')
+				transitions = np.array([float(x) for x in txt.split(',')]).reshape(len(states),len(states))
+
+			# emissions
+			if 'emissions' in line:
+				txt = line.strip().split('=')[1].replace('[','').replace(']','').replace(' ','')
+				emissions = np.array([float(x) for x in txt.split(',')])
 
 
     # Load weights file
@@ -93,7 +113,7 @@ def make_hmm_from_file(markov_param, weights_file, mut_file):
         starting_probabilities[i] = log_with_inf(start_prob)
 
 
-    return (states, np.array(transitions), np.array(emissions), np.array(starting_probabilities), np.array(weights), np.array(mutrates))
+    return (states, transitions, emissions, starting_probabilities, np.array(weights), np.array(mutrates))
 
 
 def read_observations_from_file(f):
