@@ -135,16 +135,16 @@ def read_observations_from_file(f):
 
 
 def Checkobsfile(obs, weights, mutrates):
-	returnobs = []
-	for index, (observation, w, m) in enumerate(zip(obs, weights, mutrates)):
+    returnobs = []
+    for index, (observation, w, m) in enumerate(zip(obs, weights, mutrates)):
 
-		if w*m == 0 and observation != 0:
-			print('warning in line {}. found {} SNPs but bin has {} mutation rate and {} called bases'.format(index,observation, m, w))
-			returnobs.append(0)
-		else:
-			returnobs.append(observation)
+        if w*m == 0 and observation != 0:
+            print('warning in line {}. found {} SNPs but bin has {} mutation rate and {} called bases'.format(index,observation, m, w))
+            returnobs.append(0)
+        else:
+            returnobs.append(observation)
 
-	return np.array(returnobs)
+    return np.array(returnobs)
 
 
 @jit(nopython=True)
@@ -347,7 +347,7 @@ def TrainModel(infile, outprefix, model, weights_file, mutfile):
             starting_probabilities = np.log(starting_probabilities)
             starting_probabilities, transitions, emissions, new_prob = TrainBaumWelsch(starting_probabilities, transitions, emissions, weights, obs, mutrates)
             
-            print 'doing iteration {0} with old prob {1} and new prob {2}'.format(i, old_prob, new_prob)
+            print('doing iteration {0} with old prob {1} and new prob {2}'.format(i, old_prob, new_prob))
 
 
             # Report emission values, transition values and likelihood of sequence
