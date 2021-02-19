@@ -4,7 +4,7 @@ import operator
 import math
 from numba import jit
 from collections import defaultdict
-
+from numba.typed import List
 
 def MakeHMMfile(state_names, starting_probabilities, transitions, emissions, outprefix):
     with open(outprefix + '.hmm','w') as out:
@@ -135,16 +135,16 @@ def read_observations_from_file(f):
 
 
 def Checkobsfile(obs, weights, mutrates):
-	returnobs = []
-	for index, (observation, w, m) in enumerate(zip(obs, weights, mutrates)):
+    returnobs = []
+    for index, (observation, w, m) in enumerate(zip(obs, weights, mutrates)):
 
-		if w*m == 0 and observation != 0:
-			print('warning in line {}. found {} SNPs but bin has {} mutation rate and {} called bases'.format(index,observation, m, w))
-			returnobs.append(0)
-		else:
-			returnobs.append(observation)
+        if w*m == 0 and observation != 0:
+            print('warning in line {}. found {} SNPs but bin has {} mutation rate and {} called bases'.format(index,observation, m, w))
+            returnobs.append(0)
+        else:
+            returnobs.append(observation)
 
-	return np.array(returnobs)
+    return np.array(returnobs)
 
 
 @jit(nopython=True)
@@ -154,7 +154,7 @@ def Forward_prob(init_start, transitions, emissions, observations, probabilities
     using the Forward algorithm.
     """
 
-    for t in range(1, number_observations): 
+    for t in np.arange(1, number_observations):
         for state in state_nums: 
             toadd = np.zeros(len(state_nums))
             for state2 in state_nums:
@@ -202,6 +202,12 @@ def Backward_prob(init_start, transitions, emissions, observations, probabilitie
     return (final, backwards) 
 
 
+def log_factorial(x):
+    total = 0
+    for y in range(1,x+1):
+        total += np.log(y)
+    return total
+
 def Forward_backward(init_start, transitions, emissions, weights, observations, mutrates):
     """
     Posterior decoding, using the forward-backward algorithm. 
@@ -209,10 +215,10 @@ def Forward_backward(init_start, transitions, emissions, weights, observations, 
 
     fractorials = np.zeros(len(observations))
     for i, obs in enumerate(observations):
-        fractorials[i] = np.log(math.factorial(obs))
+        fractorials[i] = log_factorial(obs)
 
     number_observations = len(observations)
-    state_nums = range(len(init_start))
+    state_nums = np.arange(len(init_start))
 
     probabilities = np.zeros( (len(state_nums), number_observations) ) 
     for state in state_nums: 
@@ -224,7 +230,8 @@ def Forward_backward(init_start, transitions, emissions, weights, observations, 
 
     forward_prob,  forwards  = Forward_prob(init_start, transitions, emissions, observations, probabilities, state_nums, number_observations, forwards_in)
 
-    reversedlist = [x for x  in range(number_observations-1, 0 ,-1)]
+    reversedlist = List()
+    [reversedlist.append(x) for x  in range(number_observations-1, 0 ,-1)]
     backward_prob, backwards = Backward_prob(init_start, transitions, emissions, observations, probabilities, state_nums, number_observations, backwards_in, reversedlist)
 
 
@@ -251,10 +258,10 @@ def TrainBaumWelsch(init_start, transitions, emissions, weights, observations, m
 
     fractorials = np.zeros(len(observations))
     for i, obs in enumerate(observations):
-        fractorials[i] = np.log(math.factorial(obs))
+        fractorials[i] = log_factorial(obs)
 
     number_observations = len(observations)
-    state_nums = range(len(init_start))
+    state_nums = np.arange(len(init_start))
 
     probabilities = np.zeros( (len(state_nums), number_observations) ) 
     for state in state_nums: 
@@ -266,11 +273,18 @@ def TrainBaumWelsch(init_start, transitions, emissions, weights, observations, m
     forwards_in[:,0] = init_start  + probabilities[:,0] #np.log(poisonprob(observations[0],emissions))
     backwards_in = np.zeros( (len(init_start), number_observations) ) 
 
-    
-    forward_prob,  forwards  = Forward_prob(init_start, transitions, emissions, observations, probabilities, state_nums, number_observations, forwards_in)
+    typed_observations = List()
+    [typed_observations.append(x) for x in observations]
+    typed_state_nums = List()
+    [typed_state_nums.append(x) for x in state_nums]
 
-    reversedlist = [x for x  in range(number_observations-1, 0 ,-1)]
-    backward_prob, backwards = Backward_prob(init_start, transitions, emissions, observations, probabilities, state_nums, number_observations, backwards_in, reversedlist)
+    
+    forward_prob,  forwards  = Forward_prob(init_start, transitions, emissions, typed_observations, probabilities, typed_state_nums, number_observations, forwards_in)
+
+    
+    reversedlist = List()
+    [reversedlist.append(x) for x  in range(number_observations-1, 0 ,-1)]
+    backward_prob, backwards = Backward_prob(init_start, transitions, emissions, observations, probabilities, typed_state_nums, number_observations, backwards_in, reversedlist)
 
     posat = forwards + backwards - forward_prob 
     pot = makeprobability_of_transition_matrix(state_nums, number_observations,forwards,transitions,probabilities,backwards,forward_prob)
@@ -333,7 +347,7 @@ def TrainModel(infile, outprefix, model, weights_file, mutfile):
             starting_probabilities = np.log(starting_probabilities)
             starting_probabilities, transitions, emissions, new_prob = TrainBaumWelsch(starting_probabilities, transitions, emissions, weights, obs, mutrates)
             
-            print 'doing iteration {0} with old prob {1} and new prob {2}'.format(i, old_prob, new_prob)
+            print('doing iteration {0} with old prob {1} and new prob {2}'.format(i, old_prob, new_prob))
 
 
             # Report emission values, transition values and likelihood of sequence
