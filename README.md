@@ -1,5 +1,37 @@
-# Introgression-detection
-These are the scripts needed to infere archaic introgression in modern populations using an unadmixed outgroup. 
+
+# Introgression detection
+
+These are the scripts needed to infere archaic introgression in modern populations using an unadmixed outgroup.
+
+1. [Installation](#installation)
+2. [Usage](#usage)
+3. [Quick tutorial](#quick-tutorial)
+4. [1000 genomes tutorial](#example-with-1000-genomes-data)
+      - [Get data](#getting-data)
+      - [Find derived variants in outgroup](#finding-snps-which-are-derived-in-the-outgroup)
+      - [Estimate local mutation rate](#estimating-mutation-rate-across-genome)
+      - [Find variants in ingroup](#find-a-set-of-variants-which-are-not-derived-in-the-outgroup)
+      - [Train the HMM](#training)
+      - [Decoding](#decoding)
+      - [Phased data](#training-and-decoding-with-phased-data)
+      - [Annotate](#annotate-with-known-admixing-population)
+      - [Run in python](#annotate-with-known-admixing-population)
+
+---
+
+## Installation
+
+Run the following to install:
+
+```bash
+pip install hmmix 
+```
+
+If you want to work with bcf/vcf files I would also install vcftools and bcftools. You can either use conda or visit their websites.
+
+```bash
+conda install -c bioconda vcftools bcftools
+```
 
 ![Overview of model](https://user-images.githubusercontent.com/30321818/43464826-4d11d46c-94dc-11e8-8f1a-6851aa5d9125.jpg)
 
@@ -11,576 +43,588 @@ An example on simulated data is provided below:
 
 In this example we zoom in on 1 Mb of simulated data for a haploid genome. The top panel shows the coalescence times with the outgroup across the region and the green segment is an archaic introgressed segment. Notice how much more deeper the coalescence time with the outgroup is. The second panel shows that probability of being in the archaic state. We can see that the probability is much higher in the archaic segment, demonstrating that in this toy example the model is working like we would hope. The next panel is the snp density if you dont remove all snps found in the outgroup. By looking at this one cant tell where the archaic segments begins and ends, or even if there is one. The bottom panel is the snp density when all variation in the outgroup is removed. Notice that now it is much clearer where the archaic segment begins and ends!
 
-The method is now published in PlosGenetics and can be found here: [Detecting archaic introgression using an unadmixed outgroup](https://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1007641) This paper is describing and evaluating the method. 
+The method is now published in PlosGenetics and can be found here: [Detecting archaic introgression using an unadmixed outgroup](https://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1007641) This paper is describing and evaluating the method.
+
+---
+
+## Usage
+
+```note
+Script for identifying introgressed archaic segments
+
+> Turorial:
+hmmix make_test_data 
+hmmix train  -obs=obs.txt -weights=weights.bed -mutrates=mutrates.bed -param=Initialguesses.json -out=trained.json 
+hmmix decode -obs=obs.txt -weights=weights.bed -mutrates=mutrates.bed -param=trained.json
 
 
-### Dependencies
-To run the python script you will need numpy. I am using this version of python, numpy and numba: Numba will speed up all the computation time by a factor of 10 or more so I highly recommend installing it! If you can't install it you can comment out all the @jit decoraters in the templates.py file
+Different modes (you can also see the options for each by writing hmmix make_test_data -h):
+> make_test_data        
+    -windows            Number of Kb windows to create (defaults to 50,000)
+    -nooutfiles         Don't create obs.txt, mutrates.bed, weights.bed, Initialguesses.json (defaults to yes)
 
-```
-# To run the HMM model
-python    version 2.7.12
-numpy     version 1.11.1
-numba     version 0.27.0 
+> mutation_rate         
+    -outgroup           [required] path to variants found in outgroup
+    -out                outputfile (defaults to mutationrate.bed)
+    -weights            file with callability (defaults to all positions being called)
+    -window_size        size of bins (defaults to 1 Mb)
 
-# If you want to follow my example (running on a 1000 genomes individual)
-vcftools  version 0.1.14
-tabix     version 0.2.5
-```
+> create_outgroup       
+    -ind                [required] ingroup/outgrop list (json file) or comma-separated list e.g. ind1,ind2
+    -vcf                [required] path to list of comma-separated vcf/bcf file(s) or wildcard characters e.g. chr*.bcf
+    -weights            file with callability (defaults to all positions being called)
+    -out                outputfile (defaults to stdout)
+    -ancestral          fasta file with ancestral information - comma-separated list or wildcards like vcf argument (default none)
+    -refgenome          fasta file with reference genome - comma-separated list or wildcards like vcf argument (default none)
 
-### Running the scripts
+> create_ingroup        
+    -ind                [required] ingroup/outgrop list (json file) or comma-separated list e.g. ind1,ind2
+    -vcf                [required] path to list of comma-separated vcf/bcf file(s) or wildcard characters e.g. chr*.bcf
+    -outgroup           [required] path to variant found in outgroup
+    -weights            file with callability (defaults to all positions being called)
+    -out                outputfile prefix (default is a file named obs.<ind>.txt where ind is the name of individual in ingroup/outgrop list)
+    -ancestral          fasta file with ancestral information - comma-separated list or wildcards like vcf argument (default none)
 
-How to train the model
-```
-python Train.py {observationfile} {output_prefix} {parameterfile} {weightfile} {mutationratefile}
-```
+> train                 
+    -obs                [required] file with observation data
+    -weights            file with callability (defaults to all positions being called)
+    -mutrates           file with mutation rates (default is mutation rate is uniform)
+    -param              markov parameters file (default is human/neanderthal like parameters)
+    -out                outputfile prefix (default is a file named trained.json)
+    -window_size        size of bins (default is 1000 bp)
+    -haploid            Change from using diploid data to haploid data (default is diploid)
 
-How to decode the model
-```
-python Decode.py {observationfile} {output_prefix} {parameterfile} {weightfile} {mutationratefile} {windowsize}
-```
-
-Basically the three files observationfile, weightfile and mutationratefile says how many private snps, how many bases could be called and what the mutation rate is for each window in the genome. A toy example could look like this with column chromosome, window start and value:
-
-```
-head observationfile
-1      0       0
-1      1000    0
-1      2000    1  2001
-1      3000    2  3000, 3050
-1      4000    1  4324
-1      5000    3  5069, 5114, 5500
-1      6000    0
-1      7000    0
-1      8000    0
-1      9000    0
-
-head weightfile
-1      0       1.0
-1      1000    1.0
-1      2000    1.0
-1      3000    1.0
-1      4000    1.0
-1      5000    1.0
-1      6000    0.5
-1      7000    0.1
-1      8000    0.0
-1      9000    1.0
-
-head mutationratefile
-1      0       1.5
-1      1000    1.5
-1      2000    1.5
-1      3000    1.5
-1      4000    1.5
-1      5000    1.5
-1      6000    1.5
-1      7000    1.5
-1      8000    1.5
-1      9000    1.5
+> decode                
+    -obs                [required] file with observation data
+    -weights            file with callability (defaults to all positions being called)
+    -mutrates           file with mutation rates (default is mutation rate is uniform)
+    -param              markov parameters file (default is human/neanderthal like parameters)
+    -out                outputfile prefix (default is stdout)
+    -window_size        size of bins (default is 1000 bp)
+    -haploid            Change from using diploid data to haploid data (default is diploid)
+    -admixpop ADMIXPOP  Annotate using vcffile with admixing population (default is none)
 ```
 
-So looking at the observations file we a region from 2 kb to 6 kb with high number of variants and you can see the position of each variant. We can also see from the weightfile that we can call all bases in the region 0-6 kb (we cal 100 of all bases) but we could only call half the bases from 6-7 kb. From the mutationratefile we can see that the average mutation rate in this example is 1.5 times higher than the average for the chromosome.
+---
 
-The parameterfile contains the number and names of states and the transition matrix and emission probabilities.
+## Quick tutorial
+
+Here is how we can simulate test data using hmmix. Lets make some test data and start using the program.
+
+```note
+> hmmix make_test_data
+creating 2 chromosomes each with 50000 kb of test data with the following parameters..
+
+> state_names = ['Human', 'Archaic']
+> starting_probabilities = [0.98, 0.02]
+> transitions = [[1.0, 0.0], [0.02, 0.98]]
+> emissions = [0.04, 0.4]
+```
+
+This will generate 4 files, obs.txt, weights.bed, mutrates.bed and Initialguesses.json. obs.txt. These are the mutations that are left after removing variants which are found in the outgroup.
+
+```note
+chrom  pos     ancestral_base  genotype
+chr1   5212    A               AG
+chr1   32198   A               AG
+chr1   65251   C               CG
+chr1   117853  A               AG
+chr1   122518  T               TC
+chr1   142322  T               TC
+chr1   144695  C               CG
+chr1   206370  T               TG
+chr1   218969  A               AT
+```
+
+weights.bed. This is the parts of the genome that we can accurately map to - in this case we have simulated the data and can accurately access the entire genome.
+
+```note
+chr1   0   50000000
+chr2   0   50000000
+```
+
+mutrates.bed. This is the normalized mutation rate across the genome (in bins of 1 Mb).
+
+```note
+chr1  0        1000000   1
+chr1  1000000  2000000   1
+chr1  2000000  3000000   1
+chr1  3000000  4000000   1
+chr1  4000000  5000000   1
+chr1  5000000  6000000   1
+chr1  6000000  7000000   1
+chr1  7000000  8000000   1
+chr1  8000000  9000000   1
+chr1  9000000  10000000  1
+```
+
+Initialguesses.json. This is our initial guesses when training the model - note these are different from those we simulated from.
+
+```json
+{
+  "state_names": ["Human","Archaic"],
+  "starting_probabilities": [0.5,0.5],
+  "transitions": [[0.99,0.01],[0.02,0.98]],
+  "emissions": [0.03,0.3]
+}
+```
+
+We can find the best fitting parameters using BaumWelsch training. Here is how you use it: - note you can try to ommit the weights and mutrates arguments. Since this is simulated data the mutation is constant across the genome and we can asses the entire genome. Also notice how the parameters approach the parameters the data was generated from (jubii).
+
+```note
+> hmmix train  -obs=obs.txt -weights=weights.bed -mutrates=mutrates.bed -param=Initialguesses.json -out=trained.json
+----------------------------------------
+> state_names = ['Human', 'Archaic']
+> starting_probabilities = [0.5, 0.5]
+> transitions = [[0.99, 0.01], [0.02, 0.98]]
+> emissions = [0.03, 0.3]
+> number of windows: 99970 . Number of snps =  4230
+> total callability: 1.0
+> average mutation rate per bin: 1.0
+> Output is trained.json
+> Window size is 1000 bp
+> Haploid False
+----------------------------------------
+iteration  loglikelihood  start1  start2  emis1   emis2   trans1_1  trans2_2
+0          -18123.4432    0.5     0.5     0.03    0.3     0.99      0.98
+1          -17506.017     0.96    0.04    0.035   0.2202  0.9969    0.9242
+2          -17487.7921    0.971   0.029   0.0369  0.2235  0.9974    0.9141
+...
+16         -17401.3802    0.994   0.006   0.0398  0.4584  0.9999    0.9806
+17         -17401.3786    0.994   0.006   0.0398  0.4586  0.9999    0.9807
+18         -17401.3783    0.994   0.006   0.0398  0.4587  0.9999    0.9808
+
+
+# run without mutrate and weights (only do this for simulated data)
+> hmmix train  -obs=obs.txt -param=Initialguesses.json -out=trained.json
+```
+
+We can now decode the data with the best parameters that maximize the likelihood and find the archaic segments:
+
+```note
+> hmmix decode -obs=obs.txt -weights=weights.bed -mutrates=mutrates.bed -param=trained.json
+----------------------------------------
+> state_names = ['Human', 'Archaic']
+> starting_probabilities = [0.994, 0.006]
+> transitions = [[1.0, 0.0], [0.019, 0.981]]
+> emissions = [0.04, 0.459]
+> number of windows: 99970 . Number of snps =  4230
+> total callability: 1.0
+> average mutation rate per bin: 1.0
+> Output is /dev/stdout
+> Window size is 1000 bp
+> Haploid False
+----------------------------------------
+chrom  start     end       length    state    mean_prob  snps
+chr1   0         7233000   7234000   Human    0.9995     287
+chr1   7234000   7246000   13000     Archaic  0.90427    9
+chr1   7247000   21618000  14372000  Human    0.99946    610
+chr1   21619000  21673000  55000     Archaic  0.9697     22
+chr1   21674000  26859000  5186000   Human    0.99878    204
+chr1   26860000  26941000  82000     Archaic  0.971      36
+chr1   26942000  49989000  23048000  Human    0.99982    863
+chr2   0         6793000   6794000   Human    0.99972    237
+chr2   6794000   6822000   29000     Archaic  0.95461    14
+chr2   6823000   12646000  5824000   Human    0.99927    244
+chr2   12647000  12745000  99000     Archaic  0.97413    55
+chr2   12746000  15461000  2716000   Human    0.99881    125
+chr2   15462000  15547000  86000     Archaic  0.93728    38
+chr2   15548000  32626000  17079000  Human    0.99951    709
+chr2   32627000  32695000  69000     Archaic  0.98305    31
+chr2   32696000  41087000  8392000   Human    0.9995     360
+chr2   41088000  41178000  91000     Archaic  0.96092    43
+chr2   41179000  49952000  8774000   Human    0.99789    328
+chr2   49953000  49977000  25000     Archaic  0.98501    13
+
+# Again here you could ommit weights and mutationrates. Actually one could also ommit trained.json because then the model defaults to using the parameters we used the generated the data
+> hmmix decode -obs=obs.txt
+```
+
+---
+
+## Example with 1000 genomes data
+
+---
+
+The whole pipeline we will run looks like this. In the following section we will go through all the steps on the way
+
+```note
+hmmix create_outgroup -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_*.fa
+hmmix mutation_rate -outgroup=outgroup.txt  -weights=strickmask.bed -window_size=1000000 -out mutationrate.bed
+hmmix create_ingroup  -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=obs -outgroup=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_*.fa
+hmmix train  -obs=obs.HG00096.txt -weights=strickmask.bed -mutrates=mutationrate.bed -out=trained.HG00096.json 
+hmmix decode -obs=obs.HG00096.txt -weights=strickmask.bed -mutrates=mutationrate.bed -param=trained.HG00096.json 
+```
+
+### Getting data
+
+I thought it would be nice to have an entire reproduceble example of how to use this model. From a common starting point such as a VCF file (well a BCF file in this case) to the final output.  The reason for using BCF files is because it is MUCH faster to extract data for each individual. You can convert a vcf file to a bcf file like this:
+
+```note
+bcftools view file.vcf -l 1 -O b > file.bcf
+bcftools index file.bcf
+```
+
+In this example I will analyse an individual (HG00096) from the 1000 genomes project phase 3. All analysis are run on my lenovo thinkpad (8th gen) computer so it should run on yours too!
+
+First we will need to know which 1) bases can be called in the genome and 2) which variants are found in the outgroup. So let's start out by downloading the files from the following directories.
+To download callability regions, ancestral alleles information, ingroup outgroup information call this command:
 
 ```bash
+# bcffiles (hg19)
+ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/supporting/bcf_files/
 
-head parameterfile
-# State names (only used for decoding)
-states = ['Human','Archaic']
+# callability (remember to remove chr in the beginning of each line to make it compatible with hg19 e.g. chr1 > 1)
+ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/supporting/accessible_genome_masks/20141020.strict_mask.whole_genome.bed
+sed 's/^chr\|%$//g' 20141020.strict_mask.whole_genome.bed | awk '{print $1"\t"$2"\t"$3}' > strickmask.bed
 
-# Initialization parameters (prob of staring in states)
-starting_probabilities = [0.98, 0.02]
-
-# transition matrix
-transitions = [[0.9995,0.0001],[0.012,0.98]]
-
-# emission matrix (poisson parameter)
-emissions = [0.04, 0.4]
-```
-
-You dont need to know these parameters in advance because you train the model. The emission values are the average number of variants per window in each state. 
-
-
-
-
-# Example (from VCF file to decoded segments)
-I thought it would be nice to have an entire reproduceble example of how to use this model. From a common starting point such as a VCF file to the final output. In this example I will analyse an individual (HG00096) from the 1000 genomes project phase 3. 
-
-First you will need to know which 1) bases can be called in the genome and 2) which variants are found in the outgroup. So I start out by downloading the files from the following directories.
-
-### 1) Which bases could be called?
-
-```bash
-Callability file (hg37 - get all the files)
-ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/supporting/accessible_genome_masks/StrictMask/
-
-Repeatmask file (hg37 - all files in one zip)
-hgdownload.cse.ucsc.edu/goldenpath/hg19/bigZips/chromFaMasked.tar.gz
-
-Ancestral state file (hg37 alignment e71 - get all the files)
-http://web.corral.tacc.utexas.edu/WGSAdownload/resources/human_ancestor_GRCh37_e71/
-
-```
-
-A site has to be callable in the 1000 genomes project (denoted P in the callability file) and not in a repetitive region (denoted N) in the repeatmask file. You can change the Ps and Ns in the python code or comment out the use of one of the files depending on what format your callability files are in.
-NOTE: A case could definately be made for only using the callability file from the 1000 genomes project but I am being extra conservative and also removing everything that is in repeatmasked regions. You could also use the map35_100 filter (regions where all 35 k-mers map uniqly to the reference genome) from this paper: http://science.sciencemag.org/content/early/2017/10/04/science.aao1887. 
-
-The small script below does this for chromosome 17:
-
-```bash
-python MakeMask.py {repeatmaskfile} {callabilityfile} {windowsize} {chromosomename} {outprefix}
-
-# So for chromosome 17
-python MakeMask.py chr17.fa.masked 20140520.chr17.strict_mask.fasta.gz 1000 17 chr17
-```
-
-This will generate two files. One is chr17.txt which reports the fraction of called bases for each window and chr17.bed which is a bedfile of all the callable regions. You can see the first 10 lines of each file below. Notice how there was 68 (67 from 416 to 482 and 1 from 864 to 864) bases called between position 0 and position 1000.
-
-
-```
-head chr17.txt
-17      0       0.068
-17      1000    0.642
-17      2000    0.662
-17      3000    0.377
-17      4000    0.058
-17      5000    0.723
-17      6000    0.528
-17      7000    0.729
-17      8000    0.494
-17      9000    0.151
-
-head chr17.bed
-17      416     482     Called
-17      864     864     Called
-17      1086    1105    Called
-17      1330    1951    Called
-17      2024    2278    Called
-17      2593    3212    Called
-17      3508    3671    Called
-17      4821    4878    Called
-17      5082    5515    Called
-17      5616    5769    Called
-```
-
-You can do it for all chromosomes (remember to change the outprefix name) and then concatenate them using cat. 
-
-```bash
-for file in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X
-  do echo $file
-  cat chr$file.txt >> weights.txt
-  cat chr$file.bed >> weights.bed
-  done
-```
-
-To check everything worked so far look at the first 10 lines:
-
-```bash
-head weights.*
-
-==> weights.bed <==
-1       756781  756870  Called
-1       756879  756920  Called
-1       756948  757069  Called
-1       757071  757073  Called
-1       757077  757246  Called
-1       757364  757406  Called
-1       757474  757476  Called
-1       757765  757766  Called
-1       757777  757787  Called
-1       757920  757951  Called
-
-==> weights.txt <==
-1       0       0.0
-1       1000    0.0
-1       2000    0.0
-1       3000    0.0
-1       4000    0.0
-1       5000    0.0
-1       6000    0.0
-1       7000    0.0
-1       8000    0.0
-1       9000    0.0
-```
-
-
-### 2) Which variants are found in the outgroup
-
-Now we can download the 1000 genomes VCF files and remove all variants found in an outgroup (this case the YRI, ESN and MSL Subsaharan-Africans).
-
-```bash
-# VCF files are in this directory
-ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/
-
-# Metadata is here
+# outgroup information
 ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel
+
+# Ancestral information
+ftp://ftp.ensembl.org/pub/release-74/fasta/ancestral_alleles/homo_sapiens_ancestor_GRCh37_e71.tar.bz2
+
+# Reference genome
+wget 'ftp://hgdownload.soe.ucsc.edu/goldenPath/hg19/bigZips/chromFa.tar.gz' -O chromFa.tar.gz
 ```
 
-The individual names in the outgroup should be in a file (could be called outgroups.txt) with one per line like shown below.
+For this example we will use all individuals from 'YRI','MSL' and 'ESN' as outgroup individuals. While we will only be decoding hG00096 in this example you can add as many individuals as you want to the ingroup.  
 
+```json
+{
+  "ingroup": [
+    "HG00096",
+    "HG00097"
+  ],
+  "outgroup": [
+    "HG02922",
+    "HG02923",
+    ...
+    "HG02944",
+    "HG02946"]
+}
 ```
-head outgroups.txt
-NA18486
-NA18488
-NA18489
-NA18498
-NA18499
-NA18501
-NA18502
-NA18504
-NA18505
-```
 
-We first want to get all derived alleles from the outgroup that fall within regions we can call (the weights.bed file that we just made above). Now is a good time to make sure that the "chromosomename" argument is indeed the same as in the vcf file i.e. if in the VCF file the first column is chr1 your "chromosomename" should also have been chr1 and not just 1. 
+---
 
-To do this I made a python script but for big vcffiles I found out tabix and vcftools works much faster. vcftools and tabix can be download from their websites:
+### Finding snps which are derived in the outgroup
 
-https://vcftools.github.io/man_latest.html
-http://www.htslib.org/doc/tabix.html
-
-
-To get the frequency of bi-allelic snps in a given outgroup you can run (make sure to install vcftools and tabix!). I have tabix version 0.2.5 where one uses -B to keep regions from a bed file but the newest version have changed this to -R (http://www.htslib.org/doc/tabix.html). The example below is for the 1000 genomes where each chromosome is in a separate vcf file but you could have a chromosomes in one vcf file and use the weights.bed file instead of a chromosome specific bed file.
+First we need to find a set of variants found in the outgroup. We can use the wildcard character to loop through all bcf files. If you dont have ancestral information you can skip the ancestral argument.
 
 ```bash
-tabix -h ALL.chr17.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz -B chr17.bed | \
-vcftools --vcf - --counts --stdout --keep outgroups.txt --remove-indels --min-alleles 2 --max-alleles 2 > chr17.freq
+(took an hour) > hmmix create_outgroup -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_*.fa
+
+# Alternative usage (if you only have a few individual in the outgroup you can also provide a comma separated list)
+> hmmix create_outgroup -ind=HG02922,HG02923,HG02938 -vcf=*.bcf -weights=strickmask.bed -out=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_*.fa
+
+# Alternative usage (if you have no ancestral information)
+> hmmix create_outgroup -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=outgroup.txt 
+
+# Alternative usage (if you only want to run the model on a subset of chromosomes, with or without ancestral information)
+> hmmix create_outgroup -ind=individuals.json -vcf=chr1.bcf,chr2.bcf -weights=strickmask.bed -out=outgroup.txt
+
+> hmmix create_outgroup -ind=individuals.json -vcf=chr1.bcf,chr2.bcf -weights=strickmask.bed -out=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_1.fa,homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_2.fa
 ```
 
-The first 10 lines of the file looks like this:
+Something to note is that if you use an outgroup vcffile (like 1000 genomes) and an ingroup vcf file from a different dataset (like SGDP) there is an edge case which could occur. There could be recurrent mutations where every individual in 1000 genome has the derived variant and one individual in SGDP where the derived variant has mutated back to the ancestral allele. This means that this position will not be present in the outgroup file. However if a recurrent mutation occurs it will look like multiple individuals in the ingroup file have the mutation. This does not happen often but just in case you can create the outgroup file and adding the sites which are fixed derived in all individuals using the reference genome:
 
 ```bash
-head chr17.freq
-CHROM   POS     N_ALLELES       N_CHR   {ALLELE:COUNT}
-17      439     2       584     C:584   A:0
-17      460     2       584     G:583   A:1
-17      1102    2       584     T:583   C:1
-17      1352    2       584     A:584   T:0
-17      1362    2       584     G:584   A:0
-17      1382    2       584     G:584   A:0
-17      1389    2       584     G:584   A:0
-17      1397    2       584     C:469   T:115
-17      1398    2       584     G:580   A:4
+# Alternative usage (if you want to remove sites which are fixed derived in your outgroup/ingroup)
+> hmmix create_outgroup -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_*.fa -refgenome=*fa
 ```
 
-With this output file we can estimate the average mutation rate in a region (I recommend 1,000,000 bp or 100,000 for humans because of this paper http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1007254) compared to the whole chromosome average. To do this run the script:
+---
 
-```bash
-python Estimate_mutationrate.py {outgroup_frequencyfile} {windowsize_to_calculate_mutationrate_in} {windowsize} {maskfile} {outputfile}
+### Estimating mutation rate across genome
 
-# so for chromosome 17
-python Estimate_mutationrate.py chr17.freq 1000000 1000 chr17.txt chr17.mut
+We can use the number of variants in the outgroup to estimate the substitution rate as a proxy for mutation rate.
+
+```note
+(took 30 sec) > hmmix mutation_rate -outgroup=outgroup.txt  -weights=strickmask.bed -window_size=1000000 -out mutationrate.bed
+----------------------------------------
+> Outgroupfile: outgroup.txt
+> Outputfile is: mutationrate.bed
+> Callability file is: strickmask.bed
+> Window size: 1000000
+----------------------------------------
 ```
 
-The first 10 lines of the output file will look like this:
+---
 
-```bash
-head chr17.mut
-17      0       1.15732924021
-17      1000    1.15732924021
-17      2000    1.15732924021
-17      3000    1.15732924021
-17      4000    1.15732924021
-17      5000    1.15732924021
-17      6000    1.15732924021
-17      7000    1.15732924021
-17      8000    1.15732924021
-17      9000    1.15732924021
+### Find a set of variants which are not derived in the outgroup
+
+Keep variants that are not found to be derived in the outgroup for each individual in ingroup. You can also speficy a single individual or a comma separated list of individuals.
+
+```note
+(took 20 min) > hmmix create_ingroup  -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=obs -outgroup=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_*.fa
+----------------------------------------
+> Ingroup individuals: 2
+> Using vcf and ancestral files
+vcffile: chr1.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_1.fa
+vcffile: chr2.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_2.fa
+vcffile: chr3.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_3.fa
+vcffile: chr4.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_4.fa
+vcffile: chr5.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_5.fa
+vcffile: chr6.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_6.fa
+vcffile: chr7.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_7.fa
+vcffile: chr8.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_8.fa
+vcffile: chr9.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_9.fa
+vcffile: chr10.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_10.fa
+vcffile: chr11.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_11.fa
+vcffile: chr12.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_12.fa
+vcffile: chr13.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_13.fa
+vcffile: chr14.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_14.fa
+vcffile: chr15.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_15.fa
+vcffile: chr16.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_16.fa
+vcffile: chr17.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_17.fa
+vcffile: chr18.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_18.fa
+vcffile: chr19.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_19.fa
+vcffile: chr20.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_20.fa
+vcffile: chr21.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_21.fa
+vcffile: chr22.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_22.fa
+
+> Using outgroup variants from: outgroup.txt 
+> Callability file: strickmask.bed 
+> Writing output to file with prefix: obs.<individual>.txt
+
+----------------------------------------
+Running command:
+bcftools view -m2 -M2 -v snps -s HG00096 -T strickmask.bed chr1.bcf | vcftools --vcf - --exclude-positions outgroup.txt --recode --stdout 
+...
+bcftools view -m2 -M2 -v snps -s HG00097 -T strickmask.bed chr22.bcf | vcftools --vcf - --exclude-positions outgroup.txt --recode --stdout 
+
+
+# Different way to define which individuals are in the ingroup
+(took 20 min) > hmmix create_ingroup  -ind=HG00096,HG00097 -vcf=*.bcf -weights=strickmask.bed -out=obs -outgroup=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_*.fa
 ```
 
-You can do this for all chromosomes and concatonate like before:
+---
 
-```bash
-for file in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X
-  do echo $file
-  cat chr$file.mut >> mutationrates.txt
-  done
+### Training
+
+Now for training the HMM parameters and decoding
+
+```note
+(took 3 min) > hmmix train  -obs=obs.HG00096.txt -weights=strickmask.bed -mutrates=mutationrate.bed -out=trained.HG00096.json 
+----------------------------------------
+> state_names = ['Human', 'Archaic']
+> starting_probabilities = [0.98, 0.02]
+> transitions = [[1.0, 0.0], [0.02, 0.98]]
+> emissions = [0.04, 0.4]
+> number of windows: 2876970 . Number of snps =  129149
+> total callability: 0.72
+> average mutation rate per bin: 1.0
+> Output is trained.HG00096.json
+> Window size is 1000 bp
+> Haploid False
+----------------------------------------
+iteration  loglikelihood  start1  start2  emis1   emis2   trans1_1  trans2_2
+0          -490531.2813   0.98    0.02    0.04    0.4     0.9999    0.98
+1          -487229.4347   0.962   0.038   0.0482  0.391   0.9994    0.986
+2          -487084.8757   0.958   0.042   0.0479  0.3905  0.9993    0.9835
+...
+19         -486971.7548   0.954   0.046   0.0468  0.3852  0.9989    0.9771
+20         -486971.7534   0.954   0.046   0.0468  0.3852  0.9989    0.9771
+21         -486971.7527   0.954   0.046   0.0468  0.3851  0.9989    0.9771
 ```
 
+---
 
-### Getting variants from an individual for training and decoding
+### Decoding
 
-The last thing we need to run the scripts is the observation file for an individual. This will for each window show all the variants that individual has where the derived allele is not found in the outgroup and it is in a region we can call. For individual HG00096 we will prepare the observations like this:
-
-```bash
-tabix -fh 1000_genomes_phase3/ALL.chr17.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz -B chr17.bed | \
-vcftools --vcf - --indv HG00096 --remove-indels --min-alleles 2 --max-alleles 2 --stdout --counts | \
-python Filtervariants.py homo_sapiens_ancestor_17.fa chr17.freq 1000 chr17.txt HG00096.chr17.observations.txt
-
-# The python scripts takes the following arguments
-python Filtervariants.py {ancestral} {outgroupfrequency} {windowsize} {weightsfile} {output}
+```note
+(took 30 sec) > hmmix decode -obs=obs.HG00096.txt -weights=strickmask.bed -mutrates=mutationrate.bed -param=trained.HG00096.json 
+----------------------------------------
+> state_names = ['Human', 'Archaic']
+> starting_probabilities = [0.954, 0.046]
+> transitions = [[0.999, 0.001], [0.023, 0.977]]
+> emissions = [0.047, 0.385]
+> number of windows: 2876970 . Number of snps =  129149
+> total callability: 0.72
+> average mutation rate per bin: 1.0
+> Output is /dev/stdout
+> Window size is 1000 bp
+> Haploid False
+----------------------------------------
+chrom  start    end      length   state    mean_prob  snps
+1      0        2987000  2988000  Human    0.98484    91
+1      2988000  2996000  9000     Archaic  0.72094    6
+1      2997000  3424000  428000   Human    0.98932    30
+1      3425000  3451000  27000    Archaic  0.95667    22
+1      3452000  4301000  850000   Human    0.98182    36
+1      4302000  4360000  59000    Archaic  0.84899    20
+1      4361000  4499000  139000   Human    0.97103    4
+1      4500000  4509000  10000    Archaic  0.84547    7
 ```
 
+---
 
-If you dont have ancestral/derived allele information you can just make a file of all sites where the alternative allele is not found in the outgroup (assuming the reference allele is the ancestral): 
+### Training and decoding with phased data
 
-```bash
-tabix -fh 1000_genomes_phase3/ALL.chr17.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz -B chr17.bed | \
-vcftools --vcf - --indv HG00096 --remove-indels --min-alleles 2 --max-alleles 2 --stdout --counts | \
-python FiltervariantsNOancestral.py chr17.freq 1000 chr17.txt HG00096.chr17.observations_NOancestral.txt
+It is also possible to tell the model that the data is phased with the -haploid parameter. For that we first need to train the parameters for haploid data and then decode. Training the model on phased data is done like this - and we also remember to change the name of the parameter file to include phased so future versions of ourselves don't forget. Another thing to note is that the number of snps is bigger than before 134799 vs 129149. This is because the program is counting snps on both haplotypes and homozygotes will be counted twice!
 
-# The python scripts takes the following arguments
-python FiltervariantsNOancestral.py {outgroupfrequency} {windowsize} {weightsfile} {output}
+```note
+(took 4 min) > hmmix train  -obs=obs.HG00096.txt -weights=strickmask.bed -mutrates=mutationrate.bed -out=trained.HG00096.phased.json -haploid
+----------------------------------------
+> state_names = ['Human', 'Archaic']
+> starting_probabilities = [0.98, 0.02]
+> transitions = [[1.0, 0.0], [0.02, 0.98]]
+> emissions = [0.04, 0.4]
+> number of windows: 5753940 . Number of snps =  134799
+> total callability: 0.72
+> average mutation rate per bin: 1.0
+> Output is trained.HG00096.phased.json
+> Window size is 1000 bp
+> Haploid True
+----------------------------------------
+iteration  loglikelihood  start1  start2  emis1   emis2   trans1_1  trans2_2
+0          -595858.4447   0.98    0.02    0.04    0.4     0.9999    0.98
+1          -582943.0465   0.984   0.016   0.026   0.402   0.9998    0.9853
+2          -582357.4739   0.979   0.021   0.0251  0.3721  0.9996    0.9826
+...
+19         -582040.3306   0.972   0.028   0.024   0.3355  0.9993    0.9759
+20         -582040.3291   0.972   0.028   0.024   0.3355  0.9993    0.9758
+21         -582040.3283   0.972   0.028   0.024   0.3355  0.9993    0.9758
 ```
 
-If can now look at the observation file we have created for chromosome 17. This time we will look at the first 30 lines since nothing interestig is going on until then:
+Below I am only showing the first archaic segments. The seem to fall more or less in the same places as when we used diploid data.
 
-```bash
-head -30 HG00096.chr17.observations.txt
-17      0       0
-17      1000    0
-17      2000    0
-17      3000    0
-17      4000    0
-17      5000    0
-17      6000    0
-17      7000    0
-17      8000    0
-17      9000    0
-17      10000   0
-17      11000   0
-17      12000   0
-17      13000   0
-17      14000   0
-17      15000   0
-17      16000   0
-17      17000   0
-17      18000   0
-17      19000   0
-17      20000   0
-17      21000   0
-17      22000   0
-17      23000   0
-17      24000   0
-17      25000   0
-17      26000   0
-17      27000   0
-17      28000   1       28094
-17      29000   0
-
-```
-
-We can see that in the window from 28,000 to 29,000 there is one private variant at position 28094. 
-
-We can also look the effect of having ancestral information or not. If we count the number of windows with 1,2,3... variants in HG00096.chr17.observations.txt and HG00096.chr17.observations_NOancestral.txt we find the following:
-
-```bash
-for file in  HG00096.observations*
-  do echo $file
-  cut -f3 $file | sort -n | uniq -c 
-  done
-  
-  
-HG00096.chr17.observations_NOancestral.txt
-  78986 0
-   1871 1
-    161 2
-     87 3
-     41 4
-     15 5
-     22 6
-      5 7
-      5 8
-      2 9
-      1 12
-      
-HG00096.chr17.observations.txt
-  79003 0
-   1959 1
-    158 2
-     51 3
-     16 4
-      4 5
-      3 6
-      1 7
-      1 8
+```note
+(took 30 sec) > hmmix decode -obs=obs.HG00096.txt -weights=strickmask.bed -mutrates=mutationrate.bed -param=trained.HG00096.phased.json -haploid
+----------------------------------------
+> state_names = ['Human', 'Archaic']
+> starting_probabilities = [0.972, 0.028]
+> transitions = [[0.999, 0.001], [0.024, 0.976]]
+> emissions = [0.024, 0.336]
+> number of windows: 5753940 . Number of snps =  134799
+> total callability: 0.72
+> average mutation rate per bin: 1.0
+> Output is /dev/stdout
+> Window size is 1000 bp
+> Haploid True
+----------------------------------------
+chrom   start    end      length  state    mean_prob  snps
+1_hap1  2161000  2184000  24000   Archaic  0.61474    6
+1_hap1  3425000  3451000  27000   Archaic  0.96609    22
+1_hap1  3835000  3835000  1000    Archaic  0.50118    1
+...
+1_hap2  2780000  2802000  23000   Archaic  0.62764    7
+1_hap2  4302000  4336000  35000   Archaic  0.94045    13
+1_hap2  4500000  4510000  11000   Archaic  0.87655    7
+1_hap2  4989000  5000000  12000   Archaic  0.57638    5
 
 ```
 
-You can see that while the difference is not that great, having the ancestral information is still important. 
+---
 
-We can make observation files for all chromosomes and concatonate them using:
-```bash
-for file in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X
-  do echo $file
-  cat HG00096.chr$file.observations.txt >> HG00096.observations.txt
-  done
+### Annotate with known admixing population
+
+Even though this method does not use archaic reference genomes for finding segments you can still use them to annotate your segments. If you have a vcf from the population that admixed in VCF/BCF format you can write this:
+
+```note
+> hmmix decode -obs=obs.HG00096.txt -weights=strickmask.bed -mutrates=mutationrate.bed -param=trained.HG00096.json -admixpop=archaicvar/*bcf
+----------------------------------------
+> state_names = ['Human', 'Archaic']
+> starting_probabilities = [0.954, 0.046]
+> transitions = [[0.999, 0.001], [0.023, 0.977]]
+> emissions = [0.047, 0.385]
+> number of windows: 2876970 . Number of snps =  129149
+> total callability: 0.72
+> average mutation rate per bin: 1.0
+> Output is /dev/stdout
+> Window size is 1000 bp
+> Haploid False
+----------------------------------------
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_9.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_19.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_7.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_21.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_20.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_15.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_10.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_3.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_17.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_6.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_X.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_16.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_1.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_18.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_14.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_4.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_2.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_22.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_5.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_8.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_11.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_12.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_13.bcf
+
+chrom  start     end       length  state    mean_prob  snps  admixpopvariants  AltaiNeandertal  Vindija33.19  Denisova  Chagyrskaya-Phalanx
+1      2988000   2996000   9000    Archaic  0.72094    6     4                 4                4             1         4
+1      3425000   3451000   27000   Archaic  0.95667    22    17                17               15            3         17
+1      4302000   4360000   59000   Archaic  0.84899    20    12                11               12            11        11
+1      4500000   4509000   10000   Archaic  0.84547    7     5                 4                5             4         5
+1      5339000   5346000   8000    Archaic  0.59528    4     3                 2                3             0         3
+1      9322000   9354000   33000   Archaic  0.85048    9     0                 0                0             0         0
+
 ```
 
-Now before we run the script lets check that all files needed for the analysis are right. We can check that all of them have the same lines:
+For the first segment there are 6 derived snps. Of these snps 4 are shared with Altai,Vindija, Denisova and Chagyrskaya. Only 1 is shared with Denisova so this segment likeli introgressed from Neanderthals
 
-```bash
-wc -l weights.txt
-3036315 weights.txt
+---
 
-wc -l mutationrates.txt
-3036315 mutationrates.txt
+### Run in python
 
-wc -l HG00096.observations.txt
-3036315 HG00096.observations.txt
+You also have the choice to run the functions from within python. Can be handy if you are simulating data and don't want to generate a ton of outfiles.
+
+```py
+from make_test_data import create_test_data
+from hmm_functions import TrainModel, DecodeModel, HMMParam, read_HMM_parameters_from_file
+from helper_functions import Load_observations_weights_mutrates
+
+# -----------------------------------------------------------------------------
+# Test data from quick tutorial
+# -----------------------------------------------------------------------------
+
+# Initial HMM guess
+initial_hmm_params = HMMParam(['Human', 'Archaic'], [0.5, 0.5], [[0.99,0.01],[0.02,0.98]], [0.03, 0.3]) 
+
+# Create test data
+obs, chroms, starts, variants, weights, mutrates  = create_test_data(50000, write_out_files = False)
+
+# Train model
+hmm_parameters = TrainModel(obs, mutrates, weights, initial_hmm_params)
+
+# Decode model
+segments = DecodeModel(obs, chroms, starts, variants, mutrates, weights, hmm_parameters)
+
+for segment_info in segments:
+    chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, variants = segment_info
+    print(chrom, genome_start,  genome_end, genome_length, state, mean_prob, snp_counter, sep = '\t')
+
+
+
+# -----------------------------------------------------------------------------
+# Running on an individual from 1000 genomes
+# -----------------------------------------------------------------------------
+
+hmm_parameters = read_HMM_parameters_from_file('trained.HG00096.json')
+obs, chroms, starts, variants, weights, mutrates = Load_observations_weights_mutrates(obs_file = 'obs.HG00096.txt', weights_file = 'strickmask.bed', mutrates_file = 'mutationrate.bed', window_size = 1000, haploid = False)
+
+segments = DecodeModel(obs, chroms, starts, variants, mutrates, weights, hmm_parameters)
+
+for index, segment_info in enumerate(segments):   
+    chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, variants = segment_info
+    print(chrom, genome_start,  genome_end, genome_length, state, mean_prob, snp_counter, sep = '\t')
+
+
 ```
 
-We also have to make a file with some guesses for the starting parameters of the hidden markov model. I have made some in this file:
-
-```bash
-head StartingParameters.hmm
-# State names (only used for decoding)
-states = ['Human','Archaic']
-
-# Initialization parameters (prob of staring in states)
-starting_probabilities = [0.98, 0.02]
-
-# transition matrix
-transitions = [[0.9995,0.0005],[0.012,0.98]]
-
-# emission matrix (poisson parameter)
-emissions = [0.04, 0.1]
-```
-
-You can experiment with chosen different starting parameters but most of the time when you train on a whole genome the parameters will converge to some set. What these parameters mean (if we start with emissions) is that in the first state (that we call human) we expect a LOWER density of private variants than in the Archaic. In the human we expect 0.04 snps pr 1000 bp. If we for now just assume all variants are heterozygous then we find 0.02 variants per chromosome. This would mean that the coalescent to the outgroup is given by:
-0.02 = Tcoal * L * mutrate = Tcoal * 1000 * 1.25 * 10^-8. If we solve for Tcoal this would mean a coalescence time of 1600 generation (48,000 years if you assume the generation time is 30 year/gen). The coalescence time for state 2 segments (Archaic) with the outgroup is 240,000 year (on the low end but hey we are just guessing now). 
-
-From the transition matrix you can also see that we think probability of staying within an Archaic segment is 0.98. That means that the states will on average be 50 windows long (or 50 kb since the window size is 1000 bp). That would mean that the introgression event happend around 2000 generations ago. 
-
-### Training the model
-
-If you have made it until here then congratulations now it is (finally) time to train the model. We run the script:
-
-```bash
-python Train.py HG00096.observations.txt HG00096_trained StartingParameters.hmm weights.txt mutationrates.txt
-
-# Which produces the following stdout
-doing iteration 0 with old prob -342131.828014 and new prob -329646.667856
-doing iteration 1 with old prob -329646.667856 and new prob -328689.97075
-doing iteration 2 with old prob -328689.97075 and new prob -328350.976312
-doing iteration 3 with old prob -328350.976312 and new prob -328203.432826
-...............................
-doing iteration 32 with old prob -328059.027492 and new prob -328059.027316
-doing iteration 33 with old prob -328059.027316 and new prob -328059.027194
-doing iteration 34 with old prob -328059.027194 and new prob -328059.027117
-```
-
-This took a couple 10 min to run on my computer (as opposed to 2 hours without numba!) with around a Gigabyte memory. The model will create two files. One is called HG00096_trained.log where it report the parameters and likelihood of the model for each iteration and HG00096_trained.hmm which is the same format as StartingParameters.hmm (just with the parameters that optimize the likelihood).The files looks like this:
-
-```bash
-head HG00096_trained.log
-name                            iteration     state   value             comment                 model
-HG00096.observations.txt        0             1       -329646.667856    forward.probability     StartingParameters.hmm
-HG00096.observations.txt        0             0       0.0453121826934   emission.state.1        StartingParameters.hmm
-HG00096.observations.txt        0             1       0.2844683425      emission.state.2        StartingParameters.hmm
-HG00096.observations.txt        0             1       0.999456527903    transition.state.1.to.1 StartingParameters.hmm
-HG00096.observations.txt        0             1       0.000543472096929 transition.state.1.to.2 StartingParameters.hmm
-HG00096.observations.txt        0             1       0.00682378074967  transition.state.2.to.1 StartingParameters.hmm
-HG00096.observations.txt        0             1       0.99317621925     transition.state.2.to.2 StartingParameters.hmm
-HG00096.observations.txt        1             1       -328689.97075     forward.probability     StartingParameters.hmm
-HG00096.observations.txt        1             0       0.0451119255211   emission.state.1        StartingParameters.hmm
-HG00096.observations.txt        1             1       0.312322129188    emission.state.2        StartingParameters.hmm
-HG00096.observations.txt        1             1       0.999339550661    transition.state.1.to.1 StartingParameters.hmm
-HG00096.observations.txt        1             1       0.000660449338687 transition.state.1.to.2 StartingParameters.hmm
-HG00096.observations.txt        1             1       0.00908742164102  transition.state.2.to.1 StartingParameters.hmm
-HG00096.observations.txt        1             1       0.990912578359    transition.state.2.to.2 StartingParameters.hmm
-
-head HG00096_trained.hmm
-# State names (only used for decoding)
-states = ['Human','Archaic']
-
-# Initialization parameters (prob of staring in states)
-starting_probabilities = [0.64711360595814615, 0.35288571994646434]
-
-# transition matrix
-transitions = [[0.998901410753,0.00109858924719],[0.0180266949275,0.981973305073]]
-
-# emission matrix (poisson parameter)
-emissions = [0.044536419546627744, 0.35668151800605369]
-```
-
-So we can see that our guess for the emission of the Human state was fairly close, but the actual emission for the Archaic state was off. The new emission parameter corresponds to a coalescence between the Archaic and outgroup at 854,400 years which is after the estimate for the splittime of humans and Neanderthals (500,000 - 750,000 years ago). The transmission matrix also suggests that admixture happened around 2000 generations ago. Note this is a very rough way of estimating the length distribution of Archaic segments but as a back-of-the-envelope-thing it can help you get an idea of the admixture time.
-
-### Decoding the model
-
-Now that we have a set of trained parameters that maximize the likelihood we can decode the model using the following script:
-
-```bash
-python Decode.py HG00096.observations.txt HG00096_decoded HG00096_trained.hmm weights.txt mutationrates.txt 1000
-```
-
-This will also produce two files. One is HG00096_decoded.Summary which is like a bedfile and tell you what part of the sequence belong to different states. It also tells you how many snps that are in each segment and what the average posterior probability for being in that segment is. The other is HG00096_decoded.All_posterior_probs.txt and this is a window by window assignment to each state. 
-
-The files look like this:
-
-```bash
-head HG00096_decoded.Summary.txt
-name            chrom   start   end       length    state   snps    mean_prob
-HG00096_decoded 1       0       3425000   3425000   Human   114     0.974611296838
-HG00096_decoded 1       3425000 3450000   25000     Archaic 19      0.956203499367
-HG00096_decoded 1       3450000 4260000   810000    Human   24      0.984532458656
-HG00096_decoded 1       4260000 4368000   108000    Archaic 20      0.792893841425
-HG00096_decoded 1       4368000 6143000   1775000   Human   54      0.989351192407
-HG00096_decoded 1       6143000 6151000   8000      Archaic 6       0.822766806209
-HG00096_decoded 1       6151000 9320000   3169000   Human   81      0.990871350063
-HG00096_decoded 1       9320000 9362000   42000     Archaic 10      0.853517013725
-HG00096_decoded 1       9362000 12595000  3234000   Human   70      0.987032899434
-
-# The first 10 lines of the decoded file is not so interesting.
-# lets look for when there is a change from the Human State to the Archaic state:
-
-grep Archaic -C 5 HG00096_decoded.All_posterior_probs.txt | less -S
-chrom start    observations variants            Mostlikely    Human              Archaic
-1     3420000  0                                Human         0.960132305873     0.0398670750447
-1     3421000  0                                Human         0.935799403238     0.0641999777124
-1     3422000  0                                Human         0.892665325274     0.107334055645
-1     3423000  0                                Human         0.809656125269     0.190343255645
-1     3424000  0                                Human         0.657964767443     0.342034613507
-1     3425000  0                                Archaic       0.427257922039     0.572741458885
-1     3426000  2            3426693,3426796     Archaic       0.0115331024136    0.988466278588
-1     3427000  2            3427298,3427351     Archaic       0.000513363074651  0.999486017917
-1     3428000  1            3428747             Archaic       0.000265951782845  0.999733429141
-1     3429000  0                                Archaic       0.000255018108855  0.999744362864
-1     3430000  0                                Archaic       0.000164073074059  0.999835307885
-1     3431000  2            3431441,3431555     Archaic       1.72811908633e-05  0.999982099791
-1     3432000  0                                Archaic       6.08260521228e-05  0.999938554912
-1     3433000  1            3433567             Archaic       1.73054466771e-05  0.999982075461
-1     3434000  2            3434110,3434123     Archaic       1.73191194963e-06  0.999997648995
-1     3435000  1            3435383             Archaic       1.56816127684e-05  0.999983699252
-1     3436000  1            3436880             Archaic       5.26110087087e-05  0.999946769871
-1     3437000  1            3437014             Archaic       0.00021143228814   0.999787948578
-1     3438000  0                                Archaic       0.000870045186476  0.999129335712
-1     3439000  1            3439257             Archaic       0.00114464609767   0.998854734786
-1     3440000  1            3440445             Archaic       0.00250810495991   0.997491275952
-1     3441000  0                                Archaic       0.00822326035161   0.991776120618
-1     3442000  0                                Archaic       0.0115188552927    0.988480525659
-1     3443000  0                                Archaic       0.0132671440023    0.986732236983
-1     3444000  0                                Archaic       0.0141658743727    0.98583350663
-1     3445000  0                                Archaic       0.0142523987506    0.985746982221
-1     3446000  1            3446250             Archaic       0.013939072946     0.986060307996
-1     3447000  2            3447278,3447537     Archaic       0.0153534083569    0.984645972618
-1     3448000  1            3448489             Archaic       0.0849175473258    0.915081833666
-1     3449000  0                                Archaic       0.474370381837     0.525628999185
-1     3450000  0                                Human         0.69397004529      0.306029335719
-1     3451000  0                                Human         0.824856666092     0.175142714915
-1     3452000  0                                Human         0.905090618539     0.0949087624794
-1     3453000  0                                Human         0.94950522597      0.0504941550762
-1     3454000  0                                Human         0.972586006976     0.0274133740925
-```
-So the model seems to be doing what we want. It finds regions with a high snp density of variants not found in the outgroup (Africa) and classifies them as archaic. This region that I am showing in the HG00096_decoded.All_posterior_probs.txt corresponds to the second line in the HG00096_decoded.Summary.txt file.
-
-Furthermore this region also comes up in the same individual (albeit with different start and ending points) when you use other ways of identifying archaic segments!
-
-```bash
-# Conditional random field (S. Sankararaman - 2014)
-chr1     3,421,722-3,450,286 HG00096
-# Sstar (B. Vernot - 2016)
-chr1     3,427,298-3,461,813 HG00096
-# Sprime (S. Browning - 2018)
-chr1     3,418,794-3,457,377 HG00096
-# HMM (L. Skov 2018)
-chr1     3,425,000-3,449,000 HG00096
-```
-
-
-And that is it! Now you have run the model and gotten a set of parameters that you can interpret biologically (see my paper) and you have a list of segments that belong to the human and Archaic state. 
+And that is it! Now you have run the model and gotten a set of parameters that you can interpret biologically (see my paper) and you have a list of segments that belong to the human and Archaic state.
 
 If you have any questions about the use of the scripts, if you find errors or if you have feedback you can contact my here (make an issue) or write to:
 
-lskov@cs.au.dk
+---
+Contact:
+
+lauritsskov2@gmail.com
