@@ -113,7 +113,7 @@ def main():
     train_subparser.add_argument("-mutrates", metavar='',help="file with mutation rates (default is mutation rate is uniform)")
     train_subparser.add_argument("-param", metavar='',help="markov parameters file (default is human/neanderthal like parameters)", type=str)
     train_subparser.add_argument("-out", metavar='',help="outputfile prefix (default is a file named trained.json)", default = 'trained.json')
-    train_subparser.add_argument("-window_size", metavar='',help="size of bins (default is 1000 bp)", default = 1000)
+    train_subparser.add_argument("-window_size", metavar='',help="size of bins (default is 1000 bp)", type=int, default = 1000)
     train_subparser.add_argument("-haploid",help="Change from using diploid data to haploid data (default is diploid)", action='store_true', default = False)
 
     # Decode model
@@ -123,7 +123,7 @@ def main():
     decode_subparser.add_argument("-mutrates", metavar='',help="file with mutation rates (default is mutation rate is uniform)")
     decode_subparser.add_argument("-param", metavar='',help="markov parameters file (default is human/neanderthal like parameters)", type=str)
     decode_subparser.add_argument("-out", metavar='',help="outputfile prefix (default is stdout)", default = '/dev/stdout')
-    decode_subparser.add_argument("-window_size", metavar='',help="size of bins (default is 1000 bp)", default = 1000)
+    decode_subparser.add_argument("-window_size", metavar='',help="size of bins (default is 1000 bp)", type=int, default = 1000)
     decode_subparser.add_argument("-haploid",help="Change from using diploid data to haploid data (default is diploid)", action='store_true', default = False)
     decode_subparser.add_argument("-admixpop",help="Annotate using vcffile with admixing population (default is none)")
 
