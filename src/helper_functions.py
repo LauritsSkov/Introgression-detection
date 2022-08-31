@@ -1,7 +1,7 @@
 import numpy as np
 import json
 from collections import defaultdict
-import os
+import os, sys
 import itertools
 import difflib
 from glob import glob
@@ -69,16 +69,37 @@ def Load_observations_weights_mutrates(obs_file, weights_file, mutrates_file, wi
                     obs_counter[chrom][rounded_pos][''].append(pos)
                     haplotypes[''] += 1
 
+
     chroms, starts, variants, obs = [], [], [], []
-    for haplotype in sorted(haplotypes):
-        for chrom in sorted(obs_counter, key=sortby):
-            lastwindow = max(obs_counter[chrom]) + window_size
+    # In the case that there are NO derived variants - use weights to make list of zeros
+    if len(obs_counter) == 0:
+
+        if weights_file is None:
+            sys.exit(f'{obs_file} is empty! You need to provide a bed file!')
+
+        haplotypes[''] += 1
+        callability = make_callability_from_bed(weights_file, window_size)
+        for chrom in sorted(callability, key=sortby):
+            lastwindow = max(callability[chrom]) + window_size
 
             for window in range(0, lastwindow, window_size):
-                chroms.append(f'{chrom}{haplotype}')   
+                obs_counter[chrom][window][''].append('')
+                chroms.append(f'{chrom}')   
                 starts.append(window)
-                variants.append(','.join(obs_counter[chrom][window][haplotype]))  
-                obs.append(len(obs_counter[chrom][window][haplotype])) 
+                variants.append('')  
+                obs.append(0) 
+
+    # Otherwise fill out as normal
+    else:
+        for haplotype in sorted(haplotypes):
+            for chrom in sorted(obs_counter, key=sortby):
+                lastwindow = max(obs_counter[chrom]) + window_size
+
+                for window in range(0, lastwindow, window_size):
+                    chroms.append(f'{chrom}{haplotype}')   
+                    starts.append(window)
+                    variants.append(','.join(obs_counter[chrom][window][haplotype]))  
+                    obs.append(len(obs_counter[chrom][window][haplotype])) 
                 
 
     # Read weights file is it exists - else set all weights to 1
