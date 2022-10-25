@@ -49,3 +49,4 @@ def make_mutation_rate(freqfile, outfile, callablefile, window_size):
                 ratio = round(mut/call/genome_mean, 2)
 
             print(chrom, start, end, ratio, sep = '\t', file = out)
+            
