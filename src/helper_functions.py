@@ -357,3 +357,62 @@ def convert_to_bases(genotype, ref, alt):
             return_genotype = both_bases[base1] + both_bases[base2]
 
     return return_genotype
+
+
+
+
+# Check which type of input we are dealing with
+def combined_files(ancestralfiles, vcffiles):
+
+    # Get ancestral and vcf consensus
+    prefix1, postfix1, values1 = get_consensus(vcffiles)
+    prefix2, postfix2, values2 = get_consensus(ancestralfiles)
+
+    
+    # No ancestral files
+    if ancestralfiles == ['']:
+        ancestralfiles = [None for _ in vcffiles]
+        return ancestralfiles, vcffiles
+
+    # Same length
+    elif len(ancestralfiles) == len(vcffiles):
+        return ancestralfiles, vcffiles
+
+    # diff lengthts (both longer than 1)       
+    elif len(ancestralfiles) > 1 and len(vcffiles) > 1:
+        vcffiles = []
+        ancestralfiles = []
+
+        for joined in sorted(values1.intersection(values2), key=sortby):
+            vcffiles.append(''.join([prefix1, joined, postfix1]))
+            ancestralfiles.append(''.join([prefix2, joined, postfix2]))
+        return ancestralfiles, vcffiles
+
+    # Many ancestral files only one vcf    
+    elif len(ancestralfiles) > 1 and len(vcffiles) == 1:
+        ancestralfiles = []
+        
+        for key in values2:
+            if key in vcffiles[0]:
+                ancestralfiles.append(''.join([prefix2, key, postfix2]))
+
+        if len(vcffiles) != len(ancestralfiles):
+            sys.exit('Could not resolve ancestral files and vcffiles (try comma separated values)')
+
+        return ancestralfiles, vcffiles
+
+    # only one ancestral file and many vcf files
+    elif len(ancestralfiles) == 1 and len(vcffiles) > 1:
+        vcffiles = []
+        
+        for key in values1:
+            if key in ancestralfiles[0]:
+                vcffiles.append(''.join([prefix1, key, postfix1]))
+
+        if len(vcffiles) != len(ancestralfiles):
+            sys.exit('Could not resolve ancestral files and vcffiles (try comma separated values)')
+
+
+        return ancestralfiles, vcffiles
+    else:
+        sys.exit('Could not resolve ancestral files and vcffiles (try comma separated values)')
