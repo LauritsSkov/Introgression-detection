@@ -21,13 +21,13 @@ These are the scripts needed to infere archaic introgression in modern populatio
 
 ## Installation
 
-Run the following to install:
+Run the following command to install:
 
 ```bash
 pip install hmmix 
 ```
 
-If you want to work with bcf/vcf files I would also install vcftools and bcftools. You can either use conda or visit their websites.
+If you want to work with bcf/vcf files you should also install vcftools and bcftools. You can either use conda or visit their websites.
 
 ```bash
 conda install -c bioconda vcftools bcftools
@@ -90,7 +90,7 @@ Different modes (you can also see the options for each by writing hmmix make_tes
     -weights            file with callability (defaults to all positions being called)
     -mutrates           file with mutation rates (default is mutation rate is uniform)
     -param              markov parameters file (default is human/neanderthal like parameters)
-    -out                outputfile prefix (default is a file named trained.json)
+    -out                outputfile (default is a file named trained.json)
     -window_size        size of bins (default is 1000 bp)
     -haploid            Change from using diploid data to haploid data (default is diploid)
 
@@ -99,10 +99,11 @@ Different modes (you can also see the options for each by writing hmmix make_tes
     -weights            file with callability (defaults to all positions being called)
     -mutrates           file with mutation rates (default is mutation rate is uniform)
     -param              markov parameters file (default is human/neanderthal like parameters)
-    -out                outputfile prefix (default is stdout)
+    -out                outputfile prefix <out>.hap1.txt and <out>.hap2.txt if -haploid option is used or <out>.diploid.txt (default is stdout)
     -window_size        size of bins (default is 1000 bp)
     -haploid            Change from using diploid data to haploid data (default is diploid)
     -admixpop ADMIXPOP  Annotate using vcffile with admixing population (default is none)
+    -extrainfo          Add archaic information on each SNP (default is off)
 ```
 
 ---
@@ -249,7 +250,7 @@ chr2   49953000  49977000  25000     Archaic  0.98501    13
 The whole pipeline we will run looks like this. In the following section we will go through all the steps on the way
 
 ```note
-hmmix create_outgroup -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_*.fa
+hmmix create_outgroup -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_*.fa -refgenome=referencegenome/*fa
 hmmix mutation_rate -outgroup=outgroup.txt  -weights=strickmask.bed -window_size=1000000 -out mutationrate.bed
 hmmix create_ingroup  -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=obs -outgroup=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_*.fa
 hmmix train  -obs=obs.HG00096.txt -weights=strickmask.bed -mutrates=mutationrate.bed -out=trained.HG00096.json 
@@ -286,6 +287,9 @@ ftp://ftp.ensembl.org/pub/release-74/fasta/ancestral_alleles/homo_sapiens_ancest
 
 # Reference genome
 wget 'ftp://hgdownload.soe.ucsc.edu/goldenPath/hg19/bigZips/chromFa.tar.gz' -O chromFa.tar.gz
+
+# Archaic variants (Altai, Vindija, Chagyrskaya and Denisova in hg19)
+https://zenodo.org/record/7246376#.Y1cRBkrMJH4
 ```
 
 For this example we will use all individuals from 'YRI','MSL' and 'ESN' as outgroup individuals. While we will only be decoding hG00096 in this example you can add as many individuals as you want to the ingroup.  
@@ -419,13 +423,13 @@ Now for training the HMM parameters and decoding
 > Haploid False
 ----------------------------------------
 iteration  loglikelihood  start1  start2  emis1   emis2   trans1_1  trans2_2
-0          -490531.2813   0.98    0.02    0.04    0.4     0.9999    0.98
-1          -487229.4347   0.962   0.038   0.0482  0.391   0.9994    0.986
-2          -487084.8757   0.958   0.042   0.0479  0.3905  0.9993    0.9835
+0          -490533.5308   0.98    0.02    0.04    0.4     0.9999    0.98
+1          -487232.4383   0.962   0.038   0.0482  0.3911  0.9994    0.986
+2          -487087.8354   0.958   0.042   0.0479  0.3905  0.9993    0.9835
 ...
-19         -486971.7548   0.954   0.046   0.0468  0.3852  0.9989    0.9771
-20         -486971.7534   0.954   0.046   0.0468  0.3852  0.9989    0.9771
-21         -486971.7527   0.954   0.046   0.0468  0.3851  0.9989    0.9771
+19         -486974.6933   0.954   0.046   0.0468  0.3852  0.9989    0.9771
+20         -486974.692    0.954   0.046   0.0468  0.3852  0.9989    0.9771
+21         -486974.6912   0.954   0.046   0.0468  0.3852  0.9989    0.9771
 ```
 
 ---
@@ -442,20 +446,29 @@ iteration  loglikelihood  start1  start2  emis1   emis2   trans1_1  trans2_2
 > number of windows: 2876970 . Number of snps =  129149
 > total callability: 0.72
 > average mutation rate per bin: 1.0
-> Output is /dev/stdout
+> Output prefix is /dev/stdout
 > Window size is 1000 bp
 > Haploid False
 ----------------------------------------
 chrom  start    end      length   state    mean_prob  snps
 1      0        2987000  2988000  Human    0.98484    91
-1      2988000  2996000  9000     Archaic  0.72094    6
+1      2988000  2996000  9000     Archaic  0.721      6
 1      2997000  3424000  428000   Human    0.98932    30
 1      3425000  3451000  27000    Archaic  0.95667    22
 1      3452000  4301000  850000   Human    0.98182    36
-1      4302000  4360000  59000    Archaic  0.84899    20
+1      4302000  4360000  59000    Archaic  0.84897    20
 1      4361000  4499000  139000   Human    0.97103    4
-1      4500000  4509000  10000    Archaic  0.84547    7
+1      4500000  4509000  10000    Archaic  0.84548    7
+
 ```
+
+You can also save to an output file with the command:
+
+```note
+hmmix decode -obs=obs.HG00096.txt -weights=strickmask.bed -mutrates=mutationrate.bed -param=trained.HG00096.json -out=HG00096.decoded
+```
+
+This will create a file named HG00096.decoded.diploid.txt because the default option is treating the data as diploid (more on haploid decoding in next chapter)
 
 ---
 
@@ -478,16 +491,17 @@ It is also possible to tell the model that the data is phased with the -haploid 
 > Haploid True
 ----------------------------------------
 iteration  loglikelihood  start1  start2  emis1   emis2   trans1_1  trans2_2
-0          -595858.4447   0.98    0.02    0.04    0.4     0.9999    0.98
-1          -582943.0465   0.984   0.016   0.026   0.402   0.9998    0.9853
-2          -582357.4739   0.979   0.021   0.0251  0.3721  0.9996    0.9826
+0          -595864.9336   0.98    0.02    0.04    0.4     0.9999    0.98
+1          -582947.6343   0.984   0.016   0.026   0.402   0.9998    0.9853
+2          -582361.9575   0.979   0.021   0.0251  0.3722  0.9996    0.9826
 ...
-19         -582040.3306   0.972   0.028   0.024   0.3355  0.9993    0.9759
-20         -582040.3291   0.972   0.028   0.024   0.3355  0.9993    0.9758
-21         -582040.3283   0.972   0.028   0.024   0.3355  0.9993    0.9758
+18         -582044.5787   0.972   0.028   0.024   0.3356  0.9993    0.9759
+19         -582044.5759   0.972   0.028   0.024   0.3355  0.9993    0.9759
+20         -582044.5744   0.972   0.028   0.024   0.3355  0.9993    0.9758
+
 ```
 
-Below I am only showing the first archaic segments. The seem to fall more or less in the same places as when we used diploid data.
+Below I am only showing the first archaic segments on chromosome 1 for each haplotype (note you have to scroll down after chrom 22 before the new haplotype begins). The seem to fall more or less in the same places as when we used diploid data.
 
 ```note
 (took 30 sec) > hmmix decode -obs=obs.HG00096.txt -weights=strickmask.bed -mutrates=mutationrate.bed -param=trained.HG00096.phased.json -haploid
@@ -499,21 +513,29 @@ Below I am only showing the first archaic segments. The seem to fall more or les
 > number of windows: 5753940 . Number of snps =  134799
 > total callability: 0.72
 > average mutation rate per bin: 1.0
-> Output is /dev/stdout
+> Output prefix is /dev/stdout
 > Window size is 1000 bp
 > Haploid True
 ----------------------------------------
-chrom   start    end      length  state    mean_prob  snps
-1_hap1  2161000  2184000  24000   Archaic  0.61474    6
-1_hap1  3425000  3451000  27000   Archaic  0.96609    22
-1_hap1  3835000  3835000  1000    Archaic  0.50118    1
+chrom  start    end      length  state    mean_prob  snps
+1      2161000  2184000  24000   Archaic  0.61479    6
+1      3425000  3451000  27000   Archaic  0.96609    22
+1      3835000  3835000  1000    Archaic  0.50124    1
 ...
-1_hap2  2780000  2802000  23000   Archaic  0.62764    7
-1_hap2  4302000  4336000  35000   Archaic  0.94045    13
-1_hap2  4500000  4510000  11000   Archaic  0.87655    7
-1_hap2  4989000  5000000  12000   Archaic  0.57638    5
+1      2780000  2802000  23000   Archaic  0.62769    7
+1      4302000  4336000  35000   Archaic  0.94045    13
+1      4500000  4510000  11000   Archaic  0.87655    7
+1      4989000  5000000  12000   Archaic  0.57646    5
 
 ```
+
+You can also save to an output file with the command:
+
+```note
+hmmix decode -obs=obs.HG00096.txt -weights=strickmask.bed -mutrates=mutationrate.bed -param=trained.HG00096.phased.json -haploid -out=HG00096.decoded
+```
+
+This will create two files named HG00096.decoded.hap1.txt and HG00096.decoded.hap2.txt
 
 ---
 
@@ -560,12 +582,13 @@ bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_12.bcf
 bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_13.bcf
 
 chrom  start     end       length  state    mean_prob  snps  admixpopvariants  AltaiNeandertal  Vindija33.19  Denisova  Chagyrskaya-Phalanx
-1      2988000   2996000   9000    Archaic  0.72094    6     4                 4                4             1         4
+1      2988000   2996000   9000    Archaic  0.721      6     4                 4                4             1         4
 1      3425000   3451000   27000   Archaic  0.95667    22    17                17               15            3         17
-1      4302000   4360000   59000   Archaic  0.84899    20    12                11               12            11        11
-1      4500000   4509000   10000   Archaic  0.84547    7     5                 4                5             4         5
-1      5339000   5346000   8000    Archaic  0.59528    4     3                 2                3             0         3
-1      9322000   9354000   33000   Archaic  0.85048    9     0                 0                0             0         0
+1      4302000   4360000   59000   Archaic  0.84897    20    12                11               12            11        11
+1      4500000   4509000   10000   Archaic  0.84548    7     5                 4                5             4         5
+1      5339000   5346000   8000    Archaic  0.5953     4     3                 2                3             0         3
+1      9322000   9354000   33000   Archaic  0.85049    9     0                 0                0             0         0
+1      12599000  12653000  55000   Archaic  0.91483    18    11                4                11            0         10
 
 ```
 
@@ -587,7 +610,10 @@ from helper_functions import Load_observations_weights_mutrates
 # -----------------------------------------------------------------------------
 
 # Initial HMM guess
-initial_hmm_params = HMMParam(['Human', 'Archaic'], [0.5, 0.5], [[0.99,0.01],[0.02,0.98]], [0.03, 0.3]) 
+initial_hmm_params = HMMParam(state_names = ['Human', 'Archaic'], 
+                              starting_probabilities = [0.5, 0.5], 
+                              transitions = [[0.99,0.01],[0.02,0.98]], 
+                              emissions = [0.03, 0.3]) 
 
 # Create test data
 obs, chroms, starts, variants, weights, mutrates  = create_test_data(50000, write_out_files = False)
@@ -599,7 +625,7 @@ hmm_parameters = TrainModel(obs, mutrates, weights, initial_hmm_params)
 segments = DecodeModel(obs, chroms, starts, variants, mutrates, weights, hmm_parameters)
 
 for segment_info in segments:
-    chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, variants = segment_info
+    chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, ploidity, variants = segment_info
     print(chrom, genome_start,  genome_end, genome_length, state, mean_prob, snp_counter, sep = '\t')
 
 
@@ -609,12 +635,16 @@ for segment_info in segments:
 # -----------------------------------------------------------------------------
 
 hmm_parameters = read_HMM_parameters_from_file('trained.HG00096.json')
-obs, chroms, starts, variants, weights, mutrates = Load_observations_weights_mutrates(obs_file = 'obs.HG00096.txt', weights_file = 'strickmask.bed', mutrates_file = 'mutationrate.bed', window_size = 1000, haploid = False)
+obs, chroms, starts, variants, mutrates, weights = Load_observations_weights_mutrates(obs_file = 'obs.HG00096.txt', 
+                                                                                      weights_file = 'strickmask.bed', 
+                                                                                      mutrates_file = 'mutationrate.bed', 
+                                                                                      window_size = 1000, 
+                                                                                      haploid = False)
 
 segments = DecodeModel(obs, chroms, starts, variants, mutrates, weights, hmm_parameters)
 
-for index, segment_info in enumerate(segments):   
-    chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, variants = segment_info
+for segment_info in segments:  
+    chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, ploidity, variants = segment_info
     print(chrom, genome_start,  genome_end, genome_length, state, mean_prob, snp_counter, sep = '\t')
 
 
