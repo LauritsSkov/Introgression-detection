@@ -1,97 +1,17 @@
 import os
-import numpy as np
 from collections import defaultdict
-import sys 
-from glob import glob
 
-from helper_functions import get_consensus, sortby, Make_folder_if_not_exists, load_fasta, convert_to_bases, handle_individuals_input, handle_infiles, clean_files
+from helper_functions import sortby, Make_folder_if_not_exists, load_fasta, convert_to_bases, clean_files
 
-# Check which type of input we are dealing with
-def combined_files(ancestralfiles, vcffiles):
-
-    # Get ancestral and vcf consensus
-    prefix1, postfix1, values1 = get_consensus(vcffiles)
-    prefix2, postfix2, values2 = get_consensus(ancestralfiles)
-
-    
-    # No ancestral files
-    if ancestralfiles == ['']:
-        ancestralfiles = [None for _ in vcffiles]
-        return ancestralfiles, vcffiles
-
-    # Same length
-    elif len(ancestralfiles) == len(vcffiles):
-        return ancestralfiles, vcffiles
-
-    # diff lengthts (both longer than 1)       
-    elif len(ancestralfiles) > 1 and len(vcffiles) > 1:
-        vcffiles = []
-        ancestralfiles = []
-
-        for joined in sorted(values1.intersection(values2), key=sortby):
-            vcffiles.append(''.join([prefix1, joined, postfix1]))
-            ancestralfiles.append(''.join([prefix2, joined, postfix2]))
-        return ancestralfiles, vcffiles
-
-    # Many ancestral files only one vcf    
-    elif len(ancestralfiles) > 1 and len(vcffiles) == 1:
-        ancestralfiles = []
-        
-        for key in values2:
-            if key in vcffiles[0]:
-                ancestralfiles.append(''.join([prefix2, key, postfix2]))
-
-        if len(vcffiles) != len(ancestralfiles):
-            sys.exit('Could not resolve ancestral files and vcffiles (try comma separated values)')
-
-        return ancestralfiles, vcffiles
-
-    # only one ancestral file and many vcf files
-    elif len(ancestralfiles) == 1 and len(vcffiles) > 1:
-        vcffiles = []
-        
-        for key in values1:
-            if key in ancestralfiles[0]:
-                vcffiles.append(''.join([prefix1, key, postfix1]))
-
-        if len(vcffiles) != len(ancestralfiles):
-            sys.exit('Could not resolve ancestral files and vcffiles (try comma separated values)')
-
-
-        return ancestralfiles, vcffiles
-    else:
-        sys.exit('Could not resolve ancestral files and vcffiles (try comma separated values)')
 
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Dealing with bcf/vcf files functions
+# Make Outgroup
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------
 def make_out_group(individuals_input, bedfile, vcffiles, outputfile, ancestralfiles, refgenomefiles):
 
-    # Get list of outgroup individuals
-    outgroup_individuals = handle_individuals_input(individuals_input, 'outgroup')
-
-    # Get a list of vcffiles and ancestral files and intersect them
-    vcffiles = handle_infiles(vcffiles)
-    ancestralfiles = handle_infiles(ancestralfiles)
-    refgenomefiles = handle_infiles(refgenomefiles)
-
-    ancestralfiles, vcffiles = combined_files(ancestralfiles, vcffiles)
-    refgenomefiles, vcffiles = combined_files(refgenomefiles, vcffiles)
-
-    print('-' * 40)
-    print('> Outgroup individuals:', len(outgroup_individuals))
-    print('> Using vcf and ancestral files')
-    for vcffile, ancestralfile, reffile in zip(vcffiles, ancestralfiles, refgenomefiles):
-        print('vcffile:',vcffile, 'ancestralfile:',ancestralfile, 'reffile:', reffile)
-    print()    
-    print('> Callability file:', bedfile)
-    print(f'> Writing output to:',outputfile)
-    print('-' * 40)
-
-
     Make_folder_if_not_exists(outputfile)
-    outgroup_individuals = ','.join(outgroup_individuals)
+    outgroup_individuals = ','.join(individuals_input)
 
     with open(outputfile + '.unsorted', 'w') as out:
 
@@ -103,9 +23,9 @@ def make_out_group(individuals_input, bedfile, vcffiles, outputfile, ancestralfi
                 ancestral_allele = load_fasta(ancestralfile)
 
             if bedfile is not None:
-                command = f'bcftools view -m2 -M2 -v snps -s {outgroup_individuals} -T {bedfile} {vcffile} | vcftools --vcf - --counts --stdout'
+                command = f'bcftools view -s {outgroup_individuals} -T {bedfile} {vcffile} | bcftools norm -m -any | bcftools view -v snps | vcftools --vcf - --counts --stdout'
             else:
-                command = f'bcftools view -m2 -M2 -v snps -s {outgroup_individuals} {vcffile} | vcftools --vcf - --counts --stdout'
+                command = f'bcftools view -s {outgroup_individuals} {vcffile} | bcftools norm -m -any | bcftools view -v snps | vcftools --vcf - --counts --stdout'
             
             print(f'Processing {vcffile}...')
             print('Running command:')
@@ -188,28 +108,10 @@ def make_out_group(individuals_input, bedfile, vcffiles, outputfile, ancestralfi
     clean_files('out.log')
     
 
-
-def make_ingroup_obs(individuals_input, bedfile, vcffiles, outprefix, outgroupfile, ancestralfiles):
-
-    # Get a list of ingroup individuals
-    ingroup_individuals = handle_individuals_input(individuals_input, 'ingroup')
-
-    # Get a list of vcffiles and ancestral files and intersect them
-    vcffiles = handle_infiles(vcffiles)
-    ancestralfiles = handle_infiles(ancestralfiles)
-    ancestralfiles, vcffiles  = combined_files(ancestralfiles, vcffiles)
-
-    print('-' * 40)
-    print('> Ingroup individuals:', len(ingroup_individuals))
-    print('> Using vcf and ancestral files')
-    for vcffile, ancestralfile in zip(vcffiles, ancestralfiles):
-        print('vcffile:',vcffile, 'ancestralfile:',ancestralfile)
-    print()  
-    print('> Using outgroup variants from:', outgroupfile)  
-    print('> Callability file:', bedfile)
-    print(f'> Writing output to file with prefix: {outprefix}.<individual>.txt')
-    print('-' * 40)
-
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Make ingroup
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+def make_ingroup_obs(ingroup_individuals, bedfile, vcffiles, outprefix, outgroupfile, ancestralfiles):
 
     # handle output files
     Make_folder_if_not_exists(outprefix)
