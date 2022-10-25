@@ -231,43 +231,92 @@ def DecodeModel(obs, chroms, starts, variants, mutrates, weights, hmm_parameters
             mean_prob = round(np.mean(post_seq[state, start_index:end_index]), 5)
             variants_segment = flatten_list(variants[start_index:end_index])
 
-            segments.append([chrom, genome_start,  genome_end, genome_length, hmm_parameters.state_names[state], mean_prob, snp_counter, variants_segment]) 
+            
+            # Diploid or haploid
+            if '_hap' in chrom:
+                newchrom, ploidity = chrom.split('_')
+            else:
+                ploidity = 'diploid'
+                newchrom = chrom
+
+            segments.append([newchrom, genome_start,  genome_end, genome_length, hmm_parameters.state_names[state], mean_prob, snp_counter, ploidity, variants_segment]) 
         
     return segments
 
 
 
-def Write_Decoded_output(output, segments, obs_file = None, admixpop_file = None):
-    
-    # write summary file 
-    Make_folder_if_not_exists(output)
 
-    with open(output,'w') as out: 
+
+def Write_Decoded_output(outputprefix, segments, obs_file = None, admixpop_file = None, extrainfo = False):
+
+    # Load archaic data
+    if admixpop_file is not None:
+        admix_pop_variants, admixpop_names = Annotate_with_ref_genome(admixpop_file, obs_file)
+
+    # Are we doing haploid/diploid?
+    outfile_mapper = {}
+    for _, _, _, _, _, _, _, ploidity, _ in segments:
+        if outputprefix == '/dev/stdout':
+            outfile_mapper[ploidity] = '/dev/stdout'
+        else:
+            outfile_mapper[ploidity] = f'{outputprefix}.{ploidity}.txt'
+
+
+    # Make output files and write headers
+    outputfiles_handlers = defaultdict(str)
+    for ploidity, output in outfile_mapper.items():
+       
+        Make_folder_if_not_exists(output)
+        outputfiles_handlers[ploidity] = open(output, 'w')
+        out = outputfiles_handlers[ploidity]
+
         if admixpop_file is not None:
-            admix_pop_variants, admixpop_names = Annotate_with_ref_genome(admixpop_file, obs_file)
-            out.write('chrom\tstart\tend\tlength\tstate\tmean_prob\tsnps\tadmixpopvariants\t{}\n'.format('\t'.join(admixpop_names)))
+            if extrainfo:
+                out.write('chrom\tstart\tend\tlength\tstate\tmean_prob\tsnps\tadmixpopvariants\t{}\tvariant\tfoundin\n'.format('\t'.join(admixpop_names)))
+            else:
+                out.write('chrom\tstart\tend\tlength\tstate\tmean_prob\tsnps\tadmixpopvariants\t{}\n'.format('\t'.join(admixpop_names)))
         else:
             out.write('chrom\tstart\tend\tlength\tstate\tmean_prob\tsnps\n')
 
-        for chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, variants in segments:
+    # Go through segments and write to output
+    for chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, ploidity, variants in segments:
 
-            if admixpop_file is not None:
-                archiac_variants_dict = defaultdict(int)
-                for snp_position in variants.split(','):
-                    variant = admix_pop_variants[f'{chrom}_{snp_position}']
-                    if variant != '':
-                        if '|' in variant:
-                            for ind in variant.split('|'):
-                                archiac_variants_dict[ind] += 1
-                        else:
-                            archiac_variants_dict[variant] += 1
+        out = outputfiles_handlers[ploidity]
 
-                        archiac_variants_dict['total'] += 1
+        if admixpop_file is not None:
+            archiac_variants_dict = defaultdict(int)
+            for snp_position in variants.split(','):
+                variant = admix_pop_variants[f'{chrom}_{snp_position}']
+                if variant != '':
+                    if '|' in variant:
+                        for ind in variant.split('|'):
+                            archiac_variants_dict[ind] += 1
+                    else:
+                        archiac_variants_dict[variant] += 1
 
-                archaic_variants = '\t'.join([str(archiac_variants_dict[x]) for x in ['total'] + admixpop_names])
-                print(chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, archaic_variants, sep = '\t', file = out)
+                    archiac_variants_dict['total'] += 1
+
+            archaic_variants = '\t'.join([str(archiac_variants_dict[x]) for x in ['total'] + admixpop_names])
+
+            if extrainfo:
+                for variant in variants.split(','):
+
+                    if admix_pop_variants[f'{chrom}_{variant}'] == '':
+                        foundin = 'none'
+                    else:
+                        foundin = admix_pop_variants[f'{chrom}_{variant}']
+
+                    print(chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, archaic_variants, variant, foundin, sep = '\t', file = out)
             else:
-                print(chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, sep = '\t', file = out)
+                print(chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, archaic_variants, sep = '\t', file = out)
+
+        else:
+            print(chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, sep = '\t', file = out)
+
+
+    # Close output files
+    for ploidity, out in outputfiles_handlers.items():
+        out.close()
 
 
 
