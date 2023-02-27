@@ -103,7 +103,7 @@ Different modes (you can also see the options for each by writing hmmix make_tes
     -window_size        size of bins (default is 1000 bp)
     -haploid            Change from using diploid data to haploid data (default is diploid)
     -admixpop ADMIXPOP  Annotate using vcffile with admixing population (default is none)
-    -extrainfo          Add archaic information on each SNP (default is off)
+    -extrainfo          Add variant position for each SNP (default is off)
 ```
 
 ---
