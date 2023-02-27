@@ -8,7 +8,7 @@ from make_mutationrate import make_mutation_rate
 from helper_functions import Load_observations_weights_mutrates, handle_individuals_input, handle_infiles, combined_files
 
 
-VERSION = '0.6.0'
+VERSION = '0.6.5'
 
 
 def print_script_usage():
