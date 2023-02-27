@@ -272,11 +272,14 @@ def Write_Decoded_output(outputprefix, segments, obs_file = None, admixpop_file 
 
         if admixpop_file is not None:
             if extrainfo:
-                out.write('chrom\tstart\tend\tlength\tstate\tmean_prob\tsnps\tadmixpopvariants\t{}\tvariant\tfoundin\n'.format('\t'.join(admixpop_names)))
+                out.write('chrom\tstart\tend\tlength\tstate\tmean_prob\tsnps\tadmixpopvariants\t{}\tvariants\n'.format('\t'.join(admixpop_names)))
             else:
                 out.write('chrom\tstart\tend\tlength\tstate\tmean_prob\tsnps\tadmixpopvariants\t{}\n'.format('\t'.join(admixpop_names)))
         else:
-            out.write('chrom\tstart\tend\tlength\tstate\tmean_prob\tsnps\n')
+            if extrainfo:
+                out.write('chrom\tstart\tend\tlength\tstate\tmean_prob\tsnps\tvariants\n')
+            else:
+                out.write('chrom\tstart\tend\tlength\tstate\tmean_prob\tsnps\n')
 
     # Go through segments and write to output
     for chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, ploidity, variants in segments:
@@ -299,19 +302,16 @@ def Write_Decoded_output(outputprefix, segments, obs_file = None, admixpop_file 
             archaic_variants = '\t'.join([str(archiac_variants_dict[x]) for x in ['total'] + admixpop_names])
 
             if extrainfo:
-                for variant in variants.split(','):
-
-                    if admix_pop_variants[f'{chrom}_{variant}'] == '':
-                        foundin = 'none'
-                    else:
-                        foundin = admix_pop_variants[f'{chrom}_{variant}']
-
-                    print(chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, archaic_variants, variant, foundin, sep = '\t', file = out)
+                print(chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, archaic_variants, variants, sep = '\t', file = out)
             else:
                 print(chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, archaic_variants, sep = '\t', file = out)
 
         else:
-            print(chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, sep = '\t', file = out)
+
+            if extrainfo:
+                print(chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, variants, sep = '\t', file = out)
+            else:    
+                print(chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, sep = '\t', file = out)
 
 
     # Close output files
