@@ -83,7 +83,7 @@ def make_out_group(individuals_input, bedfile, vcffiles, outputfile, ancestralfi
                 refgenome_allele = load_fasta(reffile)
 
                 for index, (refbase, ancbase) in enumerate(zip(refgenome_allele, ancestral_allele)):
-                    if ancbase in 'ACGT' and refbase in 'ACGT':
+                    if ancbase in ['A','C','G','T']  and refbase in ['A','C','G','T'] :
                         if refbase != ancbase and variants_seen[index] == 0:
                             print(chrom, index + 1, f'{refbase}:100', f'{ancbase}:0', ancbase, sep = '\t', file = out)
 
@@ -128,9 +128,9 @@ def make_ingroup_obs(ingroup_individuals, bedfile, vcffiles, outprefix, outgroup
             ancestral_allele = load_fasta(ancestralfile)
 
         if bedfile is not None:
-            command = f'bcftools view -m2 -M2 -v snps -s {individuals_for_bcf} -T {bedfile} {vcffile} | vcftools --vcf - --exclude-positions {outgroupfile} --recode --stdout'
+            command = f'bcftools view -v snps -s {individuals_for_bcf} -T {bedfile} {vcffile} | bcftools norm -m +any | vcftools --vcf - --exclude-positions {outgroupfile} --recode --stdout'
         else:
-            command = f'bcftools view -m2 -M2 -v snps -s {individuals_for_bcf} {vcffile} | vcftools --vcf - --exclude-positions {outgroupfile} --recode --stdout'
+            command = f'bcftools view -v snps -s {individuals_for_bcf} {vcffile} | bcftools norm -m +any | vcftools --vcf - --exclude-positions {outgroupfile} --recode --stdout'
 
         print('Running command:')
         print(command, '\n\n')
@@ -145,28 +145,23 @@ def make_ingroup_obs(ingroup_individuals, bedfile, vcffiles, outprefix, outgroup
                 chrom, pos, _, ref_allele, alt_allele = line.strip().split()[0:5]
                 pos = int(pos)
                 genotypes = [x.split(':')[0] for x in line.strip().split()[9:]]
+                all_bases = [ref_allele] + alt_allele.split(',')
 
-                if ref_allele in 'ACGT' and alt_allele in 'ACGT':
+                if ref_allele in ['A','C','G','T']:
 
-                    for original_genotype, individual in zip(genotypes, individuals_in_vcffile):
-                        ref_count = original_genotype.count('0')
-                        alt_count = original_genotype.count('1')     
-                        genotype = convert_to_bases(original_genotype, ref_allele, alt_allele)   
+                    for original_genotype, individual in zip(genotypes, individuals_in_vcffile):  
+                        genotype = convert_to_bases(original_genotype, all_bases)   
 
                         if ancestralfile is not None:
                             # With ancestral information look for derived alleles
                             ancestral_base = ancestral_allele[pos-1]
-                            if ancestral_base in [ref_allele, alt_allele]:
-
-                                derived_count = genotype.count(alt_allele) if ancestral_base == ref_allele else genotype.count(ref_allele)
-                                if derived_count > 0:
-                                    print(chrom, pos, ancestral_base, genotype, sep = '\t', file = outfile_handler[individual])
+                            if ancestral_base in all_bases and genotype.count(ancestral_base) != 2 and genotype != 'NN':
+                                print(chrom, pos, ancestral_base, genotype, sep = '\t', file = outfile_handler[individual])
 
                         else:
                             # If no ancestral information is provided only include heterozygous variants
-                            if alt_count * ref_count > 0:
-                                ancestral_base = ref_allele
-                                print(chrom, pos, ancestral_base, genotype, sep = '\t', file = outfile_handler[individual])
+                            if genotype[0] != genotype[1]:
+                                print(chrom, pos, ref_allele, genotype, sep = '\t', file = outfile_handler[individual])
                 
 
                 if index % 100000 == 0:
