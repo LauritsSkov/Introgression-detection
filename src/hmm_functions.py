@@ -80,20 +80,49 @@ def logoutput(hmm_parameters, loglikelihood, iteration):
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
+# def Emission_probs_poisson(emissions, observations, weights, mutrates):
+#     n = len(observations)
+#     n_states = len(emissions)
+    
+#     # observations values
+#     fractorials = np.zeros(n)
+#     for i, obs in enumerate(observations):
+#         fractorials[i] = math.factorial(obs)
+
+#     probabilities = np.zeros( (n, n_states) ) 
+#     for state in range(n_states): 
+#         probabilities[:,state] = (np.exp( - emissions[state] * weights * mutrates) *  ((emissions[state] * weights * mutrates )**observations )) / fractorials
+
+#     return probabilities
+
+
+@njit
+def poisson_probability_underflow_safe(n, lam):
+    # naive:   np.exp(-lam) * lam**n / factorial(n)
+
+    # iterative, to keep the components from getting too large or small:
+    p = np.exp(-lam)
+    for i in range(n):
+        p *= lam
+        p /= i+1
+    return p
+
+@njit
 def Emission_probs_poisson(emissions, observations, weights, mutrates):
     n = len(observations)
     n_states = len(emissions)
     
-    # observations values
-    fractorials = np.zeros(n)
-    for i, obs in enumerate(observations):
-        fractorials[i] = math.factorial(obs)
-
     probabilities = np.zeros( (n, n_states) ) 
     for state in range(n_states): 
-        probabilities[:,state] = (np.exp( - emissions[state] * weights * mutrates) *  ((emissions[state] * weights * mutrates )**observations )) / fractorials
+        for index in range(n):
+            lam = emissions[state] * weights[index] * mutrates[index]
+            probabilities[index,state] = poisson_probability_underflow_safe(observations[index], lam)
 
     return probabilities
+
+
+
+
 
 @njit
 def fwd_step(alpha_prev, E, trans_mat):
