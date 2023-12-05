@@ -409,27 +409,27 @@ bcftools view -m2 -M2 -v snps -s HG00097 -T strickmask.bed chr22.bcf | vcftools 
 Now for training the HMM parameters and decoding
 
 ```note
-(took 3 min) > hmmix train  -obs=obs.HG00096.txt -weights=strickmask.bed -mutrates=mutationrate.bed -out=trained.HG00096.json 
+(took 2 min) > hmmix train  -obs=obs.HG00096.txt -weights=strickmask.bed -mutrates=mutationrate.bed -out=trained.HG00096.json 
 ----------------------------------------
 > state_names = ['Human', 'Archaic']
 > starting_probabilities = [0.98, 0.02]
 > transitions = [[1.0, 0.0], [0.02, 0.98]]
 > emissions = [0.04, 0.4]
-> number of windows: 2876970 . Number of snps =  129149
+> number of windows: 2877010 . Number of snps =  129734
 > total callability: 0.72
 > average mutation rate per bin: 1.0
-> Output is trained.HG00096.json
+> Output is trained.HG00096_new.json
 > Window size is 1000 bp
 > Haploid False
 ----------------------------------------
 iteration  loglikelihood  start1  start2  emis1   emis2   trans1_1  trans2_2
-0          -490533.5308   0.98    0.02    0.04    0.4     0.9999    0.98
-1          -487232.4383   0.962   0.038   0.0482  0.3911  0.9994    0.986
-2          -487087.8354   0.958   0.042   0.0479  0.3905  0.9993    0.9835
+0          -492288.9165   0.98    0.02    0.04    0.4     0.9999    0.98
+1          -488899.7271   0.961   0.039   0.0483  0.3913  0.9994    0.986
+2          -488755.4068   0.958   0.042   0.0481  0.3911  0.9993    0.9835
 ...
-19         -486974.6933   0.954   0.046   0.0468  0.3852  0.9989    0.9771
-20         -486974.692    0.954   0.046   0.0468  0.3852  0.9989    0.9771
-21         -486974.6912   0.954   0.046   0.0468  0.3852  0.9989    0.9771
+19         -488642.2737   0.954   0.046   0.047   0.3862  0.9989    0.9771
+20         -488642.2723   0.954   0.046   0.047   0.3862  0.9989    0.9771
+21         -488642.2716   0.954   0.046   0.047   0.3862  0.9989    0.9771
 ```
 
 ---
@@ -442,8 +442,8 @@ iteration  loglikelihood  start1  start2  emis1   emis2   trans1_1  trans2_2
 > state_names = ['Human', 'Archaic']
 > starting_probabilities = [0.954, 0.046]
 > transitions = [[0.999, 0.001], [0.023, 0.977]]
-> emissions = [0.047, 0.385]
-> number of windows: 2876970 . Number of snps =  129149
+> emissions = [0.047, 0.386]
+> number of windows: 2877010 . Number of snps =  129734
 > total callability: 0.72
 > average mutation rate per bin: 1.0
 > Output prefix is /dev/stdout
@@ -452,14 +452,13 @@ iteration  loglikelihood  start1  start2  emis1   emis2   trans1_1  trans2_2
 ----------------------------------------
 chrom  start    end      length   state    mean_prob  snps
 1      0        2987000  2988000  Human    0.98484    91
-1      2988000  2996000  9000     Archaic  0.721      6
-1      2997000  3424000  428000   Human    0.98932    30
-1      3425000  3451000  27000    Archaic  0.95667    22
-1      3452000  4301000  850000   Human    0.98182    36
-1      4302000  4360000  59000    Archaic  0.84897    20
-1      4361000  4499000  139000   Human    0.97103    4
-1      4500000  4509000  10000    Archaic  0.84548    7
-
+1      2988000  2996000  9000     Archaic  0.71815    6
+1      2997000  3424000  428000   Human    0.98944    30
+1      3425000  3451000  27000    Archaic  0.95652    22
+1      3452000  4301000  850000   Human    0.98203    36
+1      4302000  4360000  59000    Archaic  0.84636    20
+1      4361000  4499000  139000   Human    0.97136    4
+1      4500000  4509000  10000    Archaic  0.84456    7
 ```
 
 You can also save to an output file with the command:
@@ -483,7 +482,7 @@ It is also possible to tell the model that the data is phased with the -haploid 
 > starting_probabilities = [0.98, 0.02]
 > transitions = [[1.0, 0.0], [0.02, 0.98]]
 > emissions = [0.04, 0.4]
-> number of windows: 5753940 . Number of snps =  134799
+> number of windows: 5754020 . Number of snps =  135411
 > total callability: 0.72
 > average mutation rate per bin: 1.0
 > Output is trained.HG00096.phased.json
@@ -491,14 +490,13 @@ It is also possible to tell the model that the data is phased with the -haploid 
 > Haploid True
 ----------------------------------------
 iteration  loglikelihood  start1  start2  emis1   emis2   trans1_1  trans2_2
-0          -595864.9336   0.98    0.02    0.04    0.4     0.9999    0.98
-1          -582947.6343   0.984   0.016   0.026   0.402   0.9998    0.9853
-2          -582361.9575   0.979   0.021   0.0251  0.3722  0.9996    0.9826
+0          -597753.9141   0.98    0.02    0.04    0.4     0.9999    0.98
+1          -585032.3914   0.983   0.017   0.0261  0.4026  0.9998    0.9853
+2          -584451.0968   0.979   0.021   0.0252  0.373   0.9996    0.9826
 ...
-18         -582044.5787   0.972   0.028   0.024   0.3356  0.9993    0.9759
-19         -582044.5759   0.972   0.028   0.024   0.3355  0.9993    0.9759
-20         -582044.5744   0.972   0.028   0.024   0.3355  0.9993    0.9758
-
+19         -584134.532    0.972   0.028   0.0241  0.3367  0.9993    0.9758
+20         -584134.5305   0.972   0.028   0.0241  0.3366  0.9993    0.9758
+21         -584134.5297   0.972   0.028   0.0241  0.3366  0.9993    0.975
 ```
 
 Below I am only showing the first archaic segments on chromosome 1 for each haplotype (note you have to scroll down after chrom 22 before the new haplotype begins). The seem to fall more or less in the same places as when we used diploid data.
@@ -509,24 +507,25 @@ Below I am only showing the first archaic segments on chromosome 1 for each hapl
 > state_names = ['Human', 'Archaic']
 > starting_probabilities = [0.972, 0.028]
 > transitions = [[0.999, 0.001], [0.024, 0.976]]
-> emissions = [0.024, 0.336]
-> number of windows: 5753940 . Number of snps =  134799
+> emissions = [0.024, 0.337]
+> number of windows: 5754020 . Number of snps =  135411
 > total callability: 0.72
 > average mutation rate per bin: 1.0
-> Output prefix is /dev/stdout
+> Output prefix is HG00096.decoded
 > Window size is 1000 bp
 > Haploid True
 ----------------------------------------
+hap1
 chrom  start    end      length  state    mean_prob  snps
-1      2161000  2184000  24000   Archaic  0.61479    6
-1      3425000  3451000  27000   Archaic  0.96609    22
-1      3835000  3835000  1000    Archaic  0.50124    1
-...
-1      2780000  2802000  23000   Archaic  0.62769    7
-1      4302000  4336000  35000   Archaic  0.94045    13
-1      4500000  4510000  11000   Archaic  0.87655    7
-1      4989000  5000000  12000   Archaic  0.57646    5
+1      2162000  2184000  23000   Archaic  0.61055    6
+1      3425000  3451000  27000   Archaic  0.96595    22
 
+...
+hap2
+1      2780000  2802000  23000   Archaic  0.61948    7
+1      4302000  4336000  35000   Archaic  0.94008    13
+1      4500000  4510000  11000   Archaic  0.87592    7
+1      4989000  4999000  11000   Archaic  0.57897    4
 ```
 
 You can also save to an output file with the command:
@@ -549,11 +548,11 @@ Even though this method does not use archaic reference genomes for finding segme
 > state_names = ['Human', 'Archaic']
 > starting_probabilities = [0.954, 0.046]
 > transitions = [[0.999, 0.001], [0.023, 0.977]]
-> emissions = [0.047, 0.385]
-> number of windows: 2876970 . Number of snps =  129149
+> emissions = [0.047, 0.386]
+> number of windows: 2877010 . Number of snps =  129734
 > total callability: 0.72
 > average mutation rate per bin: 1.0
-> Output is /dev/stdout
+> Output prefix is /dev/stdout
 > Window size is 1000 bp
 > Haploid False
 ----------------------------------------
@@ -582,13 +581,13 @@ bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_12.bcf
 bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_13.bcf
 
 chrom  start     end       length  state    mean_prob  snps  admixpopvariants  AltaiNeandertal  Vindija33.19  Denisova  Chagyrskaya-Phalanx
-1      2988000   2996000   9000    Archaic  0.721      6     4                 4                4             1         4
-1      3425000   3451000   27000   Archaic  0.95667    22    17                17               15            3         17
-1      4302000   4360000   59000   Archaic  0.84897    20    12                11               12            11        11
-1      4500000   4509000   10000   Archaic  0.84548    7     5                 4                5             4         5
-1      5339000   5346000   8000    Archaic  0.5953     4     3                 2                3             0         3
-1      9322000   9354000   33000   Archaic  0.85049    9     0                 0                0             0         0
-1      12599000  12653000  55000   Archaic  0.91483    18    11                4                11            0         10
+1      2988000   2996000   9000    Archaic  0.71815    6     4                 4                4             1         4
+1      3425000   3451000   27000   Archaic  0.95652    22    17                17               15            3         17
+1      4302000   4360000   59000   Archaic  0.84636    20    12                11               12            11        11
+1      4500000   4509000   10000   Archaic  0.84456    7     5                 4                5             4         5
+1      5339000   5346000   8000    Archaic  0.58909    4     3                 2                3             0         3
+1      9322000   9354000   33000   Archaic  0.8475     9     0                 0                0             0         0
+1      12599000  12653000  55000   Archaic  0.9142     18    11                4                11            0         10
 
 ```
 
