@@ -91,7 +91,8 @@ def Load_observations_weights_mutrates(obs_file, weights_file, mutrates_file, wi
 
     # Otherwise fill out as normal
     else:
-        for haplotype in sorted(haplotypes):
+        for haplotype in sorted(haplotypes, key=sortby_haplotype):
+            
             for chrom in sorted(obs_counter, key=sortby):
                 lastwindow = max(obs_counter[chrom]) + window_size
 
@@ -108,7 +109,8 @@ def Load_observations_weights_mutrates(obs_file, weights_file, mutrates_file, wi
     else:  
         callability = make_callability_from_bed(weights_file, window_size)
         weights = []
-        for haplotype in sorted(haplotypes):
+        for haplotype in sorted(haplotypes, key=sortby_haplotype):
+            
             for chrom in sorted(obs_counter, key=sortby):
                 lastwindow = max(obs_counter[chrom]) + window_size
 
@@ -122,7 +124,8 @@ def Load_observations_weights_mutrates(obs_file, weights_file, mutrates_file, wi
     else:  
         callability = make_callability_from_bed(mutrates_file, window_size)
         mutrates = []
-        for haplotype in sorted(haplotypes):
+        for haplotype in sorted(haplotypes, key=sortby_haplotype):
+            
             for chrom in sorted(obs_counter, key=sortby):
                 lastwindow = max(obs_counter[chrom]) + window_size
 
@@ -237,6 +240,21 @@ def sortby(x):
             return 2e6
     else:
         return 3e6
+    
+
+
+
+def sortby_haplotype(x):
+    '''
+    This function will sort haplotypes by number
+    '''
+
+    if '_hap' in x:
+        return int(x.replace('_hap', ''))
+    else:
+        return x
+    
+
 
 
 def Make_folder_if_not_exists(path):
@@ -279,6 +297,7 @@ def Annotate_with_ref_genome(vcffiles, obsfile):
                 chrom, pos, _, ref_allele, alt_allele = line.strip().split()[0:5]
                 ID =  f'{chrom}_{pos}'
                 genotypes = [x.split(':')[0] for x in line.strip().split()[9:]]
+                all_bases = [ref_allele] + alt_allele.split(',')
 
                 ancestral_base, derived_base = obs[ID]
                 found_in = []
@@ -286,7 +305,7 @@ def Annotate_with_ref_genome(vcffiles, obsfile):
                 for original_genotype, individual in zip(genotypes, individuals_in_vcffile):
 
                     if '.' not in original_genotype:
-                        genotype = convert_to_bases(original_genotype, ref_allele, alt_allele)   
+                        genotype = convert_to_bases(original_genotype, all_bases)   
 
                         if genotype.count(derived_base) > 0:
                             found_in.append(individual)
@@ -342,19 +361,20 @@ def flatten_list(variants_list):
     return ','.join(flattened_list)
 
 
-def convert_to_bases(genotype, ref, alt):
+def convert_to_bases(genotype, both_bases):
 
     return_genotype = 'NN'
-    both_bases = ref + alt
-
     separator = None
+    
     if '/' in genotype or '|' in genotype:
         separator = '|' if '|' in genotype else '/'
-    
+
         base1, base2 = [x for x in genotype.split(separator)]
         if base1.isnumeric() and base2.isnumeric():
             base1, base2 = int(base1), int(base2)
-            return_genotype = both_bases[base1] + both_bases[base2]
+
+            if both_bases[base1] in ['A','C','G','T'] and both_bases[base2] in ['A','C','G','T']:
+                return_genotype = both_bases[base1] + both_bases[base2]
 
     return return_genotype
 
