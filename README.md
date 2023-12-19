@@ -1,7 +1,8 @@
----
-Contact:
+
+# Contact
 https://sites.google.com/view/laurits-skov
 
+---
 
 # Introgression detection
 
