@@ -1,3 +1,7 @@
+---
+Contact:
+https://sites.google.com/view/laurits-skov
+
 
 # Introgression detection
 
@@ -653,7 +657,6 @@ And that is it! Now you have run the model and gotten a set of parameters that y
 
 If you have any questions about the use of the scripts, if you find errors or if you have feedback you can contact my here (make an issue) or write to:
 
----
-Contact:
 
-lauritsskov2@gmail.com
+
+
