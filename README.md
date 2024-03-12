@@ -6,6 +6,12 @@ https://sites.google.com/view/laurits-skov
 
 # Introgression detection
 
+NEWS! The outgroup files, mutation rate files and callability files are now premade! They can be downloaded in hg38 and hg19 here:
+https://doi.org/10.5281/zenodo.10806733
+
+If you are working with archaic introgression into present-day humans of non-African ancestry you can use these files and skip the following steps:
+Find derived variants in outgroup and Estimate local mutation rate. 
+
 These are the scripts needed to infere archaic introgression in modern populations using an unadmixed outgroup.
 
 1. [Installation](#installation)
@@ -253,6 +259,8 @@ chr2   49953000  49977000  25000     Archaic  0.98501    13
 ---
 
 The whole pipeline we will run looks like this. In the following section we will go through all the steps on the way
+NOTE: The outgroup files, mutation rate files and callability files are now premade! They can be downloaded in hg38 and hg19 here: https://doi.org/10.5281/zenodo.10806733
+But keep reading along if you want to know HOW the files were generated!
 
 ```note
 hmmix create_outgroup -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_*.fa -refgenome=referencegenome/*fa
@@ -545,7 +553,13 @@ This will create two files named HG00096.decoded.hap1.txt and HG00096.decoded.ha
 
 ### Annotate with known admixing population
 
-Even though this method does not use archaic reference genomes for finding segments you can still use them to annotate your segments. If you have a vcf from the population that admixed in VCF/BCF format you can write this:
+Even though this method does not use archaic reference genomes for finding segments you can still use them to annotate your segments. 
+
+I have uploaded a VCF file containing 4 high coverage archaic genomes (3 Neanderthals and 1 Denisovan) here:
+https://zenodo.org/records/7246376 (hg19 - the one I use in this example)
+https://zenodo.org/records/10806726 (hg38)
+
+If you have a vcf from the population that admixed in VCF/BCF format you can write this:
 
 ```note
 > hmmix decode -obs=obs.HG00096.txt -weights=strickmask.bed -mutrates=mutationrate.bed -param=trained.HG00096.json -admixpop=archaicvar/*bcf
@@ -657,7 +671,7 @@ for segment_info in segments:
 And that is it! Now you have run the model and gotten a set of parameters that you can interpret biologically (see my paper) and you have a list of segments that belong to the human and Archaic state.
 
 If you have any questions about the use of the scripts, if you find errors or if you have feedback you can contact my here (make an issue) or write to:
-
+lauritsskov2@gmail.com
 
 
 
