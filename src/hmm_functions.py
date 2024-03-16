@@ -252,8 +252,8 @@ def DecodeModel(obs, chroms, starts, variants, mutrates, weights, hmm_parameters
             start_index = start_index + chrom_start_index
             end_index = start_index + length_index
 
-            genome_start = starts[start_index]
-            genome_end = starts[start_index + length_index - 1]
+            genome_start = starts[start_index] + 1 # VCF files are 1-indexed (DP 16MAR24).
+            genome_end = starts[end_idx] + 1       # Now genome_end - genome_start = genome_length (DP 16MAR24).
             genome_length =  length_index * window_size
 
             snp_counter = np.sum(obs[start_index:end_index])

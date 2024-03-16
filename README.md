@@ -223,34 +223,36 @@ We can now decode the data with the best parameters that maximize the likelihood
 > number of windows: 99970 . Number of snps =  4230
 > total callability: 1.0
 > average mutation rate per bin: 1.0
-> Output is /dev/stdout
+> Output prefix is /dev/stdout
 > Window size is 1000 bp
 > Haploid False
 ----------------------------------------
-chrom  start     end       length    state    mean_prob  snps
-chr1   0         7233000   7234000   Human    0.9995     287
-chr1   7234000   7246000   13000     Archaic  0.90427    9
-chr1   7247000   21618000  14372000  Human    0.99946    610
-chr1   21619000  21673000  55000     Archaic  0.9697     22
-chr1   21674000  26859000  5186000   Human    0.99878    204
-chr1   26860000  26941000  82000     Archaic  0.971      36
-chr1   26942000  49989000  23048000  Human    0.99982    863
-chr2   0         6793000   6794000   Human    0.99972    237
-chr2   6794000   6822000   29000     Archaic  0.95461    14
-chr2   6823000   12646000  5824000   Human    0.99927    244
-chr2   12647000  12745000  99000     Archaic  0.97413    55
-chr2   12746000  15461000  2716000   Human    0.99881    125
-chr2   15462000  15547000  86000     Archaic  0.93728    38
-chr2   15548000  32626000  17079000  Human    0.99951    709
-chr2   32627000  32695000  69000     Archaic  0.98305    31
-chr2   32696000  41087000  8392000   Human    0.9995     360
-chr2   41088000  41178000  91000     Archaic  0.96092    43
-chr2   41179000  49952000  8774000   Human    0.99789    328
-chr2   49953000  49977000  25000     Archaic  0.98501    13
+chrom	start	end	length	state	mean_prob	snps
+chr1	1	7234001	7234000	Human	0.9995	287
+chr1	7234001	7247001	13000	Archaic	0.90427	9
+chr1	7247001	21619001	14372000	Human	0.99946	610
+chr1	21619001	21674001	55000	Archaic	0.9697	22
+chr1	21674001	26860001	5186000	Human	0.99878	204
+chr1	26860001	26942001	82000	Archaic	0.971	36
+chr1	26942001	49990001	23048000	Human	0.99982	863
+chr2	1	6794001	6794000	Human	0.99972	237
+chr2	6794001	6823001	29000	Archaic	0.95461	14
+chr2	6823001	12647001	5824000	Human	0.99927	244
+chr2	12647001	12746001	99000	Archaic	0.97413	55
+chr2	12746001	15462001	2716000	Human	0.99881	125
+chr2	15462001	15548001	86000	Archaic	0.93728	38
+chr2	15548001	32627001	17079000	Human	0.99951	709
+chr2	32627001	32696001	69000	Archaic	0.98305	31
+chr2	32696001	41088001	8392000	Human	0.9995	360
+chr2	41088001	41179001	91000	Archaic	0.96092	43
+chr2	41179001	49953001	8774000	Human	0.99789	328
+chr2	49953001	49978001	25000	Archaic	0.98501	13
 
 # Again here you could ommit weights and mutationrates. Actually one could also ommit trained.json because then the model defaults to using the parameters we used the generated the data
 > hmmix decode -obs=obs.txt
 ```
+
+Note that the coordinates reported from `hmmix decode` are one-indexed to match the coordinates from a VCF file and are on the half open interval `[start, end)` such that `end - start = length`.
 
 ---
 
