@@ -4,6 +4,16 @@ https://sites.google.com/view/laurits-skov
 
 ---
 
+# Helpful files
+The outgroup files, mutation rate files and callability files are now premade! 
+https://doi.org/10.5281/zenodo.10806733 (hg19 and hg38)
+
+VCF file containing 4 high coverage archaic genomes (Altai, Vindija and Chagyrskaya Neanderthals and Denisovan) here: 
+https://zenodo.org/records/7246376 (hg19) 
+https://zenodo.org/records/10806726 (hg38)
+
+---
+
 # Introgression detection
 
 NEWS! The outgroup files, mutation rate files and callability files are now premade! They can be downloaded in hg38 and hg19 here:
