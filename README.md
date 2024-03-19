@@ -6,18 +6,18 @@ https://sites.google.com/view/laurits-skov
 
 # Helpful files
 The outgroup files, mutation rate files and callability files are now premade! 
+
 https://doi.org/10.5281/zenodo.10806733 (hg19 and hg38)
 
 VCF file containing 4 high coverage archaic genomes (Altai, Vindija and Chagyrskaya Neanderthals and Denisovan) here: 
+
 https://zenodo.org/records/7246376 (hg19) 
+
 https://zenodo.org/records/10806726 (hg38)
 
 ---
 
 # Introgression detection
-
-NEWS! The outgroup files, mutation rate files and callability files are now premade! They can be downloaded in hg38 and hg19 here:
-https://doi.org/10.5281/zenodo.10806733
 
 If you are working with archaic introgression into present-day humans of non-African ancestry you can use these files and skip the following steps:
 Find derived variants in outgroup and Estimate local mutation rate. 
@@ -566,7 +566,9 @@ This will create two files named HG00096.decoded.hap1.txt and HG00096.decoded.ha
 Even though this method does not use archaic reference genomes for finding segments you can still use them to annotate your segments. 
 
 I have uploaded a VCF file containing 4 high coverage archaic genomes (3 Neanderthals and 1 Denisovan) here:
+
 https://zenodo.org/records/7246376 (hg19 - the one I use in this example)
+
 https://zenodo.org/records/10806726 (hg38)
 
 If you have a vcf from the population that admixed in VCF/BCF format you can write this:
