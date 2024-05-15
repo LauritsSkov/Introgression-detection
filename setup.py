@@ -5,7 +5,7 @@ with open('README.md', 'r') as fh:
 
 setup(
     name='hmmix', 
-    version = '0.6.9',
+    version = '0.7.0',
     description='Find introgressed segments',
     py_modules=['bcf_vcf', 'helper_functions', 'hmm_functions', 'main', 'make_mutationrate', 'make_test_data'],
     package_dir={'': 'src'},
