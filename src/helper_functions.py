@@ -49,25 +49,41 @@ def make_callability_from_bed(bedfile, window_size):
 
 
 
-def Load_observations_weights_mutrates(obs_file, weights_file, mutrates_file, window_size = 1000, haploid = False):
+def Load_observations_weights_mutrates(obs_file, weights_file, mutrates_file, window_size = 1000, haploid = False, chrom_to_look_for = 'All'):
 
     obs_counter = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
     haplotypes = defaultdict(int)
+
+    if chrom_to_look_for != 'All':
+        chromosome_list = chrom_to_look_for.split(',')
 
     with open(obs_file) as data:
         for line in data:
             if not line.startswith('chrom'):
                 chrom, pos, ancestral_base, genotype = line.strip().split()
-                rounded_pos = int(pos) - int(pos) % window_size
 
-                if haploid:  
-                    for i, base in enumerate(genotype):
-                        if base != ancestral_base:
-                            obs_counter[chrom][rounded_pos][f'_hap{i+1}'].append(pos)
-                            haplotypes[f'_hap{i+1}'] += 1
+               
+                
+                keep_chromosome = False
+                if chrom_to_look_for == 'All':
+                    keep_chromosome = True
                 else:
-                    obs_counter[chrom][rounded_pos][''].append(pos)
-                    haplotypes[''] += 1
+                    if chrom in chromosome_list:
+                        keep_chromosome = True
+
+                if keep_chromosome:
+                     # convert 1-indexed position to 0-indexed position
+                    zero_based_pos = int(pos) - 1
+                    rounded_pos = zero_based_pos - zero_based_pos % window_size
+
+                    if haploid:  
+                        for i, base in enumerate(genotype):
+                            if base != ancestral_base:
+                                obs_counter[chrom][rounded_pos][f'_hap{i+1}'].append(pos)
+                                haplotypes[f'_hap{i+1}'] += 1
+                    else:
+                        obs_counter[chrom][rounded_pos][''].append(pos)
+                        haplotypes[''] += 1
 
 
     chroms, starts, variants, obs = [], [], [], []
@@ -80,14 +96,23 @@ def Load_observations_weights_mutrates(obs_file, weights_file, mutrates_file, wi
         haplotypes[''] += 1
         callability = make_callability_from_bed(weights_file, window_size)
         for chrom in sorted(callability, key=sortby):
-            lastwindow = max(callability[chrom]) + window_size
 
-            for window in range(0, lastwindow, window_size):
-                obs_counter[chrom][window][''].append('')
-                chroms.append(f'{chrom}')   
-                starts.append(window)
-                variants.append('')  
-                obs.append(0) 
+            keep_variant = False
+            if chrom_to_look_for == 'All':
+                keep_variant = True
+            else:
+                if chrom in chromosome_list:
+                    keep_variant = True
+
+            if keep_variant:
+                lastwindow = max(callability[chrom]) + window_size
+
+                for window in range(0, lastwindow, window_size):
+                    obs_counter[chrom][window][''].append('')
+                    chroms.append(f'{chrom}')   
+                    starts.append(window)
+                    variants.append('')  
+                    obs.append(0) 
 
     # Otherwise fill out as normal
     else:
@@ -139,13 +164,13 @@ def Load_observations_weights_mutrates(obs_file, weights_file, mutrates_file, wi
             obs[index] = 0
             
 
-
     return np.array(obs).astype(int), chroms, starts, variants, np.array(mutrates).astype(float), np.array(weights).astype(float)
 
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # For decoding/training
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 def find_runs(inarray):
     """ run length encoding. Partial credit to R rle function. 
         Multi datatype arrays catered for including non Numpy
@@ -273,7 +298,6 @@ def Annotate_with_ref_genome(vcffiles, obsfile):
     shared_with = defaultdict(str)
 
     tempobsfile = obsfile + 'temp'
-
     with open(obsfile) as data, open(tempobsfile,'w') as out:
         for line in data:
             if not line.startswith('chrom'):
@@ -282,6 +306,23 @@ def Annotate_with_ref_genome(vcffiles, obsfile):
                 derived_variant = genotype.replace(ancestral_base, '')[0]
                 ID = f'{chrom}_{pos}'
                 obs[ID] = [ancestral_base, derived_variant]
+
+    # handle case with 0 SNPs
+    if len(obs) == 0:
+        for vcffile in handle_infiles(vcffiles):
+            command = f'bcftools view -h {vcffile}'
+            print('You have no observations!')
+
+            for line in os.popen(command):
+                if line.startswith('#CHROM'):
+                    individuals_in_vcffile = line.strip().split()[9:]
+
+            # Clean log files generated by vcf and bcf tools
+            clean_files('out.log')
+            clean_files(tempobsfile)
+
+            return shared_with, individuals_in_vcffile
+
 
     print('Loading in admixpop snp information')
     for vcffile in handle_infiles(vcffiles):
