@@ -2,7 +2,6 @@ from collections import defaultdict
 import numpy as np
 from numba import njit
 import json
-import math
 
 from helper_functions import find_runs, Annotate_with_ref_genome, Make_folder_if_not_exists, flatten_list
 
@@ -79,23 +78,6 @@ def logoutput(hmm_parameters, loglikelihood, iteration):
 # HMM functions
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-
-# def Emission_probs_poisson(emissions, observations, weights, mutrates):
-#     n = len(observations)
-#     n_states = len(emissions)
-    
-#     # observations values
-#     fractorials = np.zeros(n)
-#     for i, obs in enumerate(observations):
-#         fractorials[i] = math.factorial(obs)
-
-#     probabilities = np.zeros( (n, n_states) ) 
-#     for state in range(n_states): 
-#         probabilities[:,state] = (np.exp( - emissions[state] * weights * mutrates) *  ((emissions[state] * weights * mutrates )**observations )) / fractorials
-
-#     return probabilities
-
-
 @njit
 def poisson_probability_underflow_safe(n, lam):
     # naive:   np.exp(-lam) * lam**n / factorial(n)
@@ -123,16 +105,15 @@ def Emission_probs_poisson(emissions, observations, weights, mutrates):
 
 
 
-
 @njit
 def fwd_step(alpha_prev, E, trans_mat):
     alpha_new = (alpha_prev @ trans_mat) * E
     n = np.sum(alpha_new)
     return alpha_new / n, n
 
+
 @njit
 def forward(probabilities, transitions, init_start):
-
     n = len(probabilities)
     forwards_in = np.zeros( (n, len(init_start)) ) 
     scale_param = np.ones(n)
@@ -141,7 +122,7 @@ def forward(probabilities, transitions, init_start):
         if t == 0:
             forwards_in[t,:] = init_start  * probabilities[t,:]
             scale_param[t] = np.sum( forwards_in[t,:])
-            forwards_in[t,:] = forwards_in[t,:] / scale_param[t]
+            forwards_in[t,:] = forwards_in[t,:] / scale_param[t]  
         else:
             forwards_in[t,:], scale_param[t] =  fwd_step(forwards_in[t-1,:], probabilities[t,:], transitions) 
 
@@ -206,6 +187,115 @@ def TrainBaumWelsch(hmm_parameters, weights, obs, mutrates):
 
     return HMMParam(hmm_parameters.state_names,new_starting_probabilities, new_transitions_matrix, new_emissions_matrix)
 
+
+
+
+
+
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+# inhomogeneous markov chain
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+@njit
+def Simulate_values(n_states, p):
+    return np.random.binomial(1, p)
+
+
+
+def Simulate_transition(n_states, matrix, current_state):
+
+    # prob of statying (can be done with numba so its quick)
+    next_state = Simulate_values(n_states, matrix[current_state])
+    if next_state == 1:
+        return current_state
+    
+    else:
+        if n_states == 2:
+            return abs(current_state - 1)
+        
+        else:
+            new_matrix = [matrix[x] for x in range(n_states) if current_state != x]
+            new_matrix /= np.sum(new_matrix)
+            new_states = [x for x in range(n_states) if current_state != x]
+
+            return np.random.choice(new_states, p=new_matrix)
+
+
+
+def inhomogeneous(hmm_parameters, weights, obs, mutrates, samples, chroms, starts, variants):
+    """
+    Calculate transition matrix for each position in the sequence (given the data)
+    """ 
+
+    n_states = len(hmm_parameters.starting_probabilities)
+    number_observations = len(obs)
+    emissions = Emission_probs_poisson(hmm_parameters.emissions, obs, weights, mutrates)   
+    window_size = starts[2] - starts[1] 
+
+    _, scales = forward(emissions, hmm_parameters.transitions, hmm_parameters.starting_probabilities)
+    backward_probs = backward(emissions, hmm_parameters.transitions, scales)
+
+    # Make and initialise new transition matrix
+    new_transition_matrix = np.zeros((number_observations, n_states, n_states))
+
+    for state in range(n_states):
+        for otherstate in range(n_states):
+            new_transition_matrix[1:, otherstate, state] = (backward_probs[1:, state] ) / (backward_probs[:-1, otherstate] * scales[1:]) * hmm_parameters.transitions[otherstate, state] * emissions[1:, state]
+    
+
+
+    segments = []
+    for sim_number in range(samples):
+        print(f'Running inhomogen markov chain simulation {sim_number + 1}/{samples}')
+
+        sim_path = np.zeros(number_observations, dtype=int)
+        
+        # set start state
+        current_state = np.random.choice(n_states, p=hmm_parameters.starting_probabilities)
+        sim_path[0] = current_state
+
+        CHROMOSOME_BREAKPOINTS = [x for x in find_runs(chroms)]
+
+        for t in range(1, number_observations):
+            #next_state = np.random.choice(n_states, p=new_transition_matrix[t][current_state])
+            next_state = Simulate_transition(n_states, new_transition_matrix[t,current_state,:], current_state)
+            sim_path[t] = next_state
+            current_state = next_state
+
+        for (chrom, chrom_start_index, chrom_length_index) in CHROMOSOME_BREAKPOINTS:
+            state_with_highest_prob = sim_path[chrom_start_index:chrom_start_index + chrom_length_index]
+
+            # Diploid or haploid
+            if '_hap' in chrom:
+                newchrom, ploidity = chrom.split('_')
+            else:
+                ploidity = 'diploid'
+                newchrom = chrom
+
+
+            for (state, start_index, length_index) in find_runs(state_with_highest_prob):
+            
+                start_index = start_index + chrom_start_index
+                end_index = start_index + length_index
+
+                genome_start = starts[start_index]
+                genome_length =  length_index * window_size
+                genome_end = genome_start + genome_length
+
+                called_sequence = int(np.sum(weights[start_index:end_index]) * window_size)
+                average_mutation_rate = round(np.mean(mutrates[start_index:end_index]), 3)
+
+                snp_counter = np.sum(obs[start_index:end_index])
+                mean_prob = 1.0
+                variants_segment = flatten_list(variants[start_index:end_index])
+
+                if called_sequence > 0:
+                    segments.append([newchrom, genome_start,  genome_end, genome_length, hmm_parameters.state_names[state], mean_prob, snp_counter, f'{ploidity}_sim_{sim_number}', called_sequence, average_mutation_rate, variants_segment]) 
+
+    return segments
+
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Train
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -235,6 +325,7 @@ def TrainModel(obs, mutrates, weights, hmm_parameters, epsilon = 1e-3, maxiterat
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 def DecodeModel(obs, chroms, starts, variants, mutrates, weights, hmm_parameters):
+
     
     # Posterior decode the file
     emissions = Emission_probs_poisson(hmm_parameters.emissions, obs, weights, mutrates)
@@ -246,30 +337,34 @@ def DecodeModel(obs, chroms, starts, variants, mutrates, weights, hmm_parameters
 
     segments = []
     for (chrom, chrom_start_index, chrom_length_index) in find_runs(chroms):
-        state_with_highest_prob = np.argmax(post_seq[:,chrom_start_index:chrom_start_index + chrom_length_index-1], axis = 0)
-        for (state, start_index, length_index) in find_runs(state_with_highest_prob):
 
+        # Diploid or haploid
+        if '_hap' in chrom:
+            newchrom, ploidity = chrom.split('_')
+        else:
+            ploidity = 'diploid'
+            newchrom = chrom
+
+        state_with_highest_prob = np.argmax(post_seq[:,chrom_start_index:chrom_start_index + chrom_length_index], axis = 0)
+
+        for (state, start_index, length_index) in find_runs(state_with_highest_prob):
+            
             start_index = start_index + chrom_start_index
             end_index = start_index + length_index
 
             genome_start = starts[start_index]
-            genome_end = starts[start_index + length_index - 1]
             genome_length =  length_index * window_size
+            genome_end = genome_start + genome_length
+
+            called_sequence = int(np.sum(weights[start_index:end_index]) * window_size)
+            average_mutation_rate = round(np.mean(mutrates[start_index:end_index]), 3)
 
             snp_counter = np.sum(obs[start_index:end_index])
             mean_prob = round(np.mean(post_seq[state, start_index:end_index]), 5)
             variants_segment = flatten_list(variants[start_index:end_index])
 
-            
-            # Diploid or haploid
-            if '_hap' in chrom:
-                newchrom, ploidity = chrom.split('_')
-            else:
-                ploidity = 'diploid'
-                newchrom = chrom
-
-            segments.append([newchrom, genome_start,  genome_end, genome_length, hmm_parameters.state_names[state], mean_prob, snp_counter, ploidity, variants_segment]) 
-        
+            segments.append([newchrom, genome_start,  genome_end, genome_length, hmm_parameters.state_names[state], mean_prob, snp_counter, ploidity, called_sequence, average_mutation_rate, variants_segment]) 
+    
     return segments
 
 
@@ -284,7 +379,7 @@ def Write_Decoded_output(outputprefix, segments, obs_file = None, admixpop_file 
 
     # Are we doing haploid/diploid?
     outfile_mapper = {}
-    for _, _, _, _, _, _, _, ploidity, _ in segments:
+    for _, _, _, _, _, _, _, ploidity, _, _, _ in segments:
         if outputprefix == '/dev/stdout':
             outfile_mapper[ploidity] = '/dev/stdout'
         else:
@@ -301,17 +396,17 @@ def Write_Decoded_output(outputprefix, segments, obs_file = None, admixpop_file 
 
         if admixpop_file is not None:
             if extrainfo:
-                out.write('chrom\tstart\tend\tlength\tstate\tmean_prob\tsnps\tadmixpopvariants\t{}\tvariants\n'.format('\t'.join(admixpop_names)))
+                out.write('chrom\tstart\tend\tlength\tstate\tmean_prob\tsnps\tadmixpopvariants\t{}\tcalled_sequence\tmutationrate\tvariants\n'.format('\t'.join(admixpop_names)))
             else:
                 out.write('chrom\tstart\tend\tlength\tstate\tmean_prob\tsnps\tadmixpopvariants\t{}\n'.format('\t'.join(admixpop_names)))
         else:
             if extrainfo:
-                out.write('chrom\tstart\tend\tlength\tstate\tmean_prob\tsnps\tvariants\n')
+                out.write('chrom\tstart\tend\tlength\tstate\tmean_prob\tsnps\tcalled_sequence\tmutationrate\tvariants\n')
             else:
                 out.write('chrom\tstart\tend\tlength\tstate\tmean_prob\tsnps\n')
 
     # Go through segments and write to output
-    for chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, ploidity, variants in segments:
+    for chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, ploidity, called_sequence, average_mutation_rate, variants  in segments:
 
         out = outputfiles_handlers[ploidity]
 
@@ -331,14 +426,14 @@ def Write_Decoded_output(outputprefix, segments, obs_file = None, admixpop_file 
             archaic_variants = '\t'.join([str(archiac_variants_dict[x]) for x in ['total'] + admixpop_names])
 
             if extrainfo:
-                print(chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, archaic_variants, variants, sep = '\t', file = out)
+                print(chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, archaic_variants, called_sequence, average_mutation_rate, variants, sep = '\t', file = out)
             else:
                 print(chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, archaic_variants, sep = '\t', file = out)
 
         else:
 
             if extrainfo:
-                print(chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, variants, sep = '\t', file = out)
+                print(chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, called_sequence, average_mutation_rate, variants, sep = '\t', file = out)
             else:    
                 print(chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, sep = '\t', file = out)
 
