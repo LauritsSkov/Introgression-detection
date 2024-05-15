@@ -1,14 +1,14 @@
 import argparse
 import numpy as np
 
-from hmm_functions import TrainModel, DecodeModel, write_HMM_to_file, read_HMM_parameters_from_file, Write_Decoded_output
+from hmm_functions import TrainModel, DecodeModel, write_HMM_to_file, read_HMM_parameters_from_file, Write_Decoded_output, inhomogeneous
 from bcf_vcf import make_out_group, make_ingroup_obs
 from make_test_data import create_test_data
 from make_mutationrate import make_mutation_rate
 from helper_functions import Load_observations_weights_mutrates, handle_individuals_input, handle_infiles, combined_files
 
 
-VERSION = '0.6.9'
+VERSION = '0.7.0'
 
 
 def print_script_usage():
@@ -23,7 +23,8 @@ hmmix decode -obs=obs.txt -weights=weights.bed -mutrates=mutrates.bed -param=tra
 
 Different modes (you can also see the options for each by writing hmmix make_test_data -h):
 > make_test_data        
-    -windows            Number of Kb windows to create (defaults to 50,000)
+    -windows            Number of Kb windows to create (defaults to 50,000 per chromosome)
+    -chromosomes        Number of chromosomes to simulate (defaults to 2)
     -nooutfiles         Don't create obs.txt, mutrates.bed, weights.bed, Initialguesses.json (defaults to yes)
 
 > mutation_rate         
@@ -50,6 +51,7 @@ Different modes (you can also see the options for each by writing hmmix make_tes
 
 > train                 
     -obs                [required] file with observation data
+    -chrom              Subset to chromosome or comma separated list of chromosomes e.g chr1 or chr1,chr2,chr3 (default is use all chromosomes)
     -weights            file with callability (defaults to all positions being called)
     -mutrates           file with mutation rates (default is mutation rate is uniform)
     -param              markov parameters file (default is human/neanderthal like parameters)
@@ -59,13 +61,27 @@ Different modes (you can also see the options for each by writing hmmix make_tes
 
 > decode                
     -obs                [required] file with observation data
+    -chrom              Subset to chromosome or comma separated list of chromosomes e.g chr1 or chr1,chr2,chr3 (default is use all chromosomes)
     -weights            file with callability (defaults to all positions being called)
     -mutrates           file with mutation rates (default is mutation rate is uniform)
     -param              markov parameters file (default is human/neanderthal like parameters)
     -out                outputfile prefix <out>.hap1.txt and <out>.hap2.txt if -haploid option is used or <out>.diploid.txt (default is stdout)
     -window_size        size of bins (default is 1000 bp)
     -haploid            Change from using diploid data to haploid data (default is diploid)
-    -admixpop ADMIXPOP  Annotate using vcffile with admixing population (default is none)
+    -admixpop           Annotate using vcffile with admixing population (default is none)
+    -extrainfo          Add variant position for each SNP (default is off)
+
+> inhomogeneous                
+    -obs                [required] file with observation data
+    -chrom              Subset to chromosome or comma separated list of chromosomes e.g chr1 or chr1,chr2,chr3 (default is use all chromosomes)
+    -weights            file with callability (defaults to all positions being called)
+    -mutrates           file with mutation rates (default is mutation rate is uniform)
+    -param              markov parameters file (default is human/neanderthal like parameters)
+    -out                outputfile prefix <out>.hap1_sim(0-n).txt and <out>.hap2_sim(0-n).txt if -haploid option is used or <out>.diploid_(0-n).txt (default is stdout)
+    -window_size        size of bins (default is 1000 bp)
+    -haploid            Change from using diploid data to haploid data (default is diploid)
+    -samples            Number of simulated paths for the inhomogeneous markov chain (default is 100)
+    -admixpop           Annotate using vcffile with admixing population (default is none)
     -extrainfo          Add variant position for each SNP (default is off)
     '''
 
@@ -82,7 +98,8 @@ def main():
 
     # Run test
     test_subparser = subparser.add_parser('make_test_data', help='Create test data')
-    test_subparser.add_argument("-windows", metavar='',help="Number of Kb windows to create (defaults to 50,000)", type=int, default = 50000)
+    test_subparser.add_argument("-windows", metavar='',help="Number of Kb windows to create (defaults to 50,000 per chromosome)", type=int, default = 50000)
+    test_subparser.add_argument("-chromosomes", metavar='',help="Number of chromosomes to simulate (defaults to 2)", type=int, default = 2)
     test_subparser.add_argument("-nooutfiles",help="Don't create obs.txt, mutrates.bed, weights.bed, Initialguesses.json (defaults to yes)", action='store_false', default = True)
 
     # Make outgroup
@@ -113,6 +130,7 @@ def main():
     # Train model
     train_subparser = subparser.add_parser('train', help='Train HMM')
     train_subparser.add_argument("-obs",help="[required] file with observation data", type=str, required = True)
+    train_subparser.add_argument("-chrom",help="Subset to chromosome or comma separated list of chromosomes e.g chr1 or chr1,chr2,chr3", type=str, default='All')
     train_subparser.add_argument("-weights", metavar='',help="file with callability (defaults to all positions being called)")
     train_subparser.add_argument("-mutrates", metavar='',help="file with mutation rates (default is mutation rate is uniform)")
     train_subparser.add_argument("-param", metavar='',help="markov parameters file (default is human/neanderthal like parameters)", type=str)
@@ -123,6 +141,7 @@ def main():
     # Decode model
     decode_subparser = subparser.add_parser('decode', help='Decode HMM')
     decode_subparser.add_argument("-obs",help="[required] file with observation data", type=str, required = True)
+    decode_subparser.add_argument("-chrom",help="Subset to chromosome or comma separated list of chromosomes e.g chr1 or chr1,chr2,chr3", type=str, default='All')
     decode_subparser.add_argument("-weights", metavar='',help="file with callability (defaults to all positions being called)")
     decode_subparser.add_argument("-mutrates", metavar='',help="file with mutation rates (default is mutation rate is uniform)")
     decode_subparser.add_argument("-param", metavar='',help="markov parameters file (default is human/neanderthal like parameters)", type=str)
@@ -132,13 +151,31 @@ def main():
     decode_subparser.add_argument("-admixpop",help="Annotate using vcffile with admixing population (default is none)")
     decode_subparser.add_argument("-extrainfo",help="Add archaic information on each SNP", action='store_true', default = False)
 
+    # inhomogeneous markov chain
+    inhomogen_subparser = subparser.add_parser('inhomogeneous', help='Make inhomogen markov chain')
+    inhomogen_subparser.add_argument("-obs",help="[required] file with observation data", type=str, required = True)
+    inhomogen_subparser.add_argument("-chrom",help="Subset to chromosome or comma separated list of chromosomes e.g chr1 or chr1,chr2,chr3", type=str, default='All')
+    inhomogen_subparser.add_argument("-weights", metavar='',help="file with callability (defaults to all positions being called)")
+    inhomogen_subparser.add_argument("-mutrates", metavar='',help="file with mutation rates (default is mutation rate is uniform)")
+    inhomogen_subparser.add_argument("-param", metavar='',help="markov parameters file (default is human/neanderthal like parameters)", type=str)
+    inhomogen_subparser.add_argument("-out", metavar='',help="outputfile prefix <out>.hap1.txt and <out>.hap2.txt if -haploid option is used or <out>.diploid.txt (default is stdout)", default = '/dev/stdout')
+    inhomogen_subparser.add_argument("-window_size", metavar='',help="size of bins (default is 1000 bp)", type=int, default = 1000)
+    inhomogen_subparser.add_argument("-haploid",help="Change from using diploid data to haploid data (default is diploid)", action='store_true', default = False)
+    inhomogen_subparser.add_argument("-samples",help="Number of paths to sample (default is 100)", type=int, default = 100)
+    inhomogen_subparser.add_argument("-admixpop",help="Annotate using vcffile with admixing population (default is none)")
+    inhomogen_subparser.add_argument("-extrainfo",help="Add archaic information on each SNP", action='store_true', default = False)
+
+
+
+
+
 
     args = parser.parse_args()
 
     # Make test data
     # ------------------------------------------------------------------------------------------------------------
     if args.mode == 'make_test_data':
-        create_test_data(data_set_length = args.windows, write_out_files = args.nooutfiles)
+        create_test_data(data_set_length = args.windows, n_chromosomes = args.chromosomes, write_out_files = args.nooutfiles)
 
 
 
@@ -148,10 +185,11 @@ def main():
     elif args.mode == 'train':
 
         hmm_parameters = read_HMM_parameters_from_file(args.param)
-        obs, _, _, _, mutrates, weights = Load_observations_weights_mutrates(args.obs, args.weights, args.mutrates, args.window_size, args.haploid)
+        obs, _, _, _, mutrates, weights = Load_observations_weights_mutrates(args.obs, args.weights, args.mutrates, args.window_size, args.haploid, args.chrom)
         
         print('-' * 40)
         print(hmm_parameters)
+        print(f'> chromosomes to use: {args.chrom}')
         print('> number of windows:', len(obs), '. Number of snps = ', sum(obs))
         print('> total callability:', round(np.sum(weights) / len(obs),2) )
         print('> average mutation rate per bin:', round(np.sum(mutrates * weights) / np.sum(weights), 2) )
@@ -170,11 +208,12 @@ def main():
     # ------------------------------------------------------------------------------------------------------------
     elif args.mode == 'decode':
 
-        obs, chroms, starts, variants, mutrates, weights  = Load_observations_weights_mutrates(args.obs, args.weights, args.mutrates, args.window_size, args.haploid)
+        obs, chroms, starts, variants, mutrates, weights  = Load_observations_weights_mutrates(args.obs, args.weights, args.mutrates, args.window_size, args.haploid, args.chrom)
         hmm_parameters = read_HMM_parameters_from_file(args.param)
         
         print('-' * 40)
         print(hmm_parameters)  
+        print(f'> chromosomes to use: {args.chrom}')
         print('> number of windows:', len(obs), '. Number of snps = ', sum(obs))
         print('> total callability:', round(np.sum(weights) / len(obs),2) )
         print('> average mutation rate per bin:', round(np.sum(mutrates * weights) / np.sum(weights), 2) )
@@ -187,7 +226,29 @@ def main():
         segments = DecodeModel(obs, chroms, starts, variants, mutrates, weights, hmm_parameters)
         Write_Decoded_output(args.out, segments, args.obs, args.admixpop, args.extrainfo)
 
+    # inhomogeneous markov chain
+    # ------------------------------------------------------------------------------------------------------------
+    elif args.mode == 'inhomogeneous':
 
+        obs, chroms, starts, variants, mutrates, weights  = Load_observations_weights_mutrates(args.obs, args.weights, args.mutrates, args.window_size, args.haploid, args.chrom)
+        hmm_parameters = read_HMM_parameters_from_file(args.param)
+        
+        print('-' * 40)
+        print(hmm_parameters)  
+        print(f'> chromosomes to use: {args.chrom}')
+        print('> number of windows:', len(obs), '. Number of snps = ', sum(obs))
+        print('> total callability:', round(np.sum(weights) / len(obs),2) )
+        print('> average mutation rate per bin:', round(np.sum(mutrates * weights) / np.sum(weights), 2) )
+        print('> Output prefix is',args.out) 
+        print('> Window size is',args.window_size, 'bp') 
+        print('> Haploid',args.haploid) 
+        print('-' * 40)
+
+        # Find segments and write output
+        segments = inhomogeneous(hmm_parameters, weights, obs, mutrates, args.samples, chroms, starts, variants)
+        Write_Decoded_output(args.out, segments, args.obs, args.admixpop, args.extrainfo)
+
+            
 
 
 
