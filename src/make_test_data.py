@@ -6,13 +6,12 @@ from hmm_functions import HMMParam, get_default_HMM_parameters, write_HMM_to_fil
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Make test data
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------
-def create_test_data(data_set_length, write_out_files = False):
+def create_test_data(data_set_length, n_chromosomes = 2, write_out_files = False):
     '''Create test data set of size data_set_length. Also create uniform weights and uniform mutation rates'''
     
     # Config
     np.random.seed(42)
     window_size = 1000
-    mutation_rate_window = 1000000
     mutation_matrix = {
         'A': [0, 0.16, 0.68, 0.16],
         'C': [0.16, 0,0.16, 0.68],
@@ -21,13 +20,17 @@ def create_test_data(data_set_length, write_out_files = False):
     }
     bases = ['A','C','G','T']
     base_composition = [0.31, 0.19, 0.19, 0.31]
+    CHROMOSOMES = [f'chr{x + 1}' for x in range(n_chromosomes)] 
 
 
     # Initialization HMM parameters, prob of staring in states and print parameters to user
     state_values = [0,1]
-    hmm_parameters = get_default_HMM_parameters()
-
-    print(f'creating 2 chromosomes each with {data_set_length} kb of test data with the following parameters..\n')
+    hmm_parameters = HMMParam(state_names = ['Human', 'Archaic'], 
+                    starting_probabilities = [0.98, 0.02], 
+                    transitions = [[0.9999,0.0001],[0.02,0.98]], 
+                    emissions = [0.04, 0.4])
+    
+    print(f'creating {len(CHROMOSOMES)} chromosomes each with {data_set_length} kb of test data with the following parameters..\n')
     print(hmm_parameters)  
 
     # Initialize data
@@ -35,9 +38,9 @@ def create_test_data(data_set_length, write_out_files = False):
     obs_counter = defaultdict(lambda: defaultdict(int))
     variants_dict = defaultdict(lambda: defaultdict(list))   
 
-    initial_guess = HMMParam(['Human', 'Archaic'], [0.5, 0.5], [[0.99,0.01],[0.02,0.98]], [0.03, 0.3]) 
+    
 
-    for chrom in ['chr1', 'chr2']:
+    for chrom in CHROMOSOMES:
         for index in range(data_set_length):
             
             # Use prior dist if starting window
@@ -60,7 +63,7 @@ def create_test_data(data_set_length, write_out_files = False):
     chroms = []
     starts = []
     variants = []
-    for chrom in ['chr1', 'chr2']:
+    for chrom in CHROMOSOMES:
         lastwindow = max(obs_counter[chrom]) + window_size
 
         for window in range(0, lastwindow, window_size):
@@ -80,18 +83,15 @@ def create_test_data(data_set_length, write_out_files = False):
             for line in observations_for_obsfile:
                 print(line, file = obs_file)
 
-        # Make mutation file
-        with open('mutrates.bed','w') as mutrates_file:
-            for chrom in ['chr1', 'chr2']:
-                for start in range(int(data_set_length * window_size / mutation_rate_window)):
-                    print(chrom, start * mutation_rate_window, (start + 1) * mutation_rate_window, 1, sep = '\t', file = mutrates_file)
-
-        # Make weights file
-        with open('weights.bed','w') as weights_file:
-            for chrom in ['chr1', 'chr2']:
+        # Make weights file and mutation file
+        with open('weights.bed','w') as weights_file, open('mutrates.bed','w') as mutrates_file:
+            for chrom in CHROMOSOMES:
                 print(chrom, 0, data_set_length * window_size, sep = '\t', file = weights_file)
+                print(chrom, 0, data_set_length * window_size, 1, sep = '\t', file = mutrates_file)
 
         # Make initial guesses
+        initial_guess = HMMParam(['Human', 'Archaic'], [0.5, 0.5], [[0.99,0.01],[0.02,0.98]], [0.03, 0.3]) 
         write_HMM_to_file(initial_guess, 'Initialguesses.json')
 
-    return observations, chroms, starts, variants, weights, mutrates
+    #return observations, chroms, starts, variants, mutrates, weights
+    return np.array(observations).astype(int), chroms, starts, variants, np.array(mutrates).astype(float), np.array(weights).astype(float)
