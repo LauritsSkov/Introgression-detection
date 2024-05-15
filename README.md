@@ -1,26 +1,28 @@
-
-# Contact
-https://sites.google.com/view/laurits-skov
-
----
-
-# Helpful files
-The outgroup files, mutation rate files and callability files are now premade! 
-
-https://doi.org/10.5281/zenodo.10806733 (hg19 and hg38)
-
-VCF file containing 4 high coverage archaic genomes (Altai, Vindija and Chagyrskaya Neanderthals and Denisovan) here: 
-
-https://zenodo.org/records/7246376 (hg19) 
-
-https://zenodo.org/records/10806726 (hg38)
-
----
-
 # Introgression detection
 
+## Contact
+
+<https://sites.google.com/view/laurits-skov>
+
+---
+
+## Helpful files
+
+The outgroup files, mutation rate files, reference genomes, ancestral alleles and callability files and ancestral allele files are now premade!
+
+<https://doi.org/10.5281/zenodo.11194283> (hg19 and hg38)
+Note the old version (<https://doi.org/10.5281/zenodo.10806733>) did not contain the ancestral alleles or reference genome and there was some missing data on the X chromosome.
+
+VCF file containing 4 high coverage archaic genomes (Altai, Vindija and Chagyrskaya Neanderthals and Denisovan) here:
+
+<https://zenodo.org/records/7246376> (hg19)
+
+<https://zenodo.org/records/10806726> (hg38)
+
+---
+
 If you are working with archaic introgression into present-day humans of non-African ancestry you can use these files and skip the following steps:
-Find derived variants in outgroup and Estimate local mutation rate. 
+Find derived variants in outgroup and Estimate local mutation rate.
 
 These are the scripts needed to infere archaic introgression in modern populations using an unadmixed outgroup.
 
@@ -36,7 +38,7 @@ These are the scripts needed to infere archaic introgression in modern populatio
       - [Decoding](#decoding)
       - [Phased data](#training-and-decoding-with-phased-data)
       - [Annotate](#annotate-with-known-admixing-population)
-      - [Run in python](#annotate-with-known-admixing-population)
+5. [Run in python](#annotate-with-known-admixing-population)
 
 ---
 
@@ -81,7 +83,8 @@ hmmix decode -obs=obs.txt -weights=weights.bed -mutrates=mutrates.bed -param=tra
 
 Different modes (you can also see the options for each by writing hmmix make_test_data -h):
 > make_test_data        
-    -windows            Number of Kb windows to create (defaults to 50,000)
+    -windows            Number of Kb windows to create (defaults to 50,000 per chromosome)
+    -chromosomes        Number of chromosomes to simulate (defaults to 2)
     -nooutfiles         Don't create obs.txt, mutrates.bed, weights.bed, Initialguesses.json (defaults to yes)
 
 > mutation_rate         
@@ -108,6 +111,7 @@ Different modes (you can also see the options for each by writing hmmix make_tes
 
 > train                 
     -obs                [required] file with observation data
+    -chrom              Subset to chromosome or comma separated list of chromosomes e.g chr1 or chr1,chr2,chr3 (default is use all chromosomes)
     -weights            file with callability (defaults to all positions being called)
     -mutrates           file with mutation rates (default is mutation rate is uniform)
     -param              markov parameters file (default is human/neanderthal like parameters)
@@ -117,13 +121,27 @@ Different modes (you can also see the options for each by writing hmmix make_tes
 
 > decode                
     -obs                [required] file with observation data
+    -chrom              Subset to chromosome or comma separated list of chromosomes e.g chr1 or chr1,chr2,chr3 (default is use all chromosomes)
     -weights            file with callability (defaults to all positions being called)
     -mutrates           file with mutation rates (default is mutation rate is uniform)
     -param              markov parameters file (default is human/neanderthal like parameters)
     -out                outputfile prefix <out>.hap1.txt and <out>.hap2.txt if -haploid option is used or <out>.diploid.txt (default is stdout)
     -window_size        size of bins (default is 1000 bp)
     -haploid            Change from using diploid data to haploid data (default is diploid)
-    -admixpop ADMIXPOP  Annotate using vcffile with admixing population (default is none)
+    -admixpop           Annotate using vcffile with admixing population (default is none)
+    -extrainfo          Add variant position for each SNP (default is off)
+
+> inhomogeneous                
+    -obs                [required] file with observation data
+    -chrom              Subset to chromosome or comma separated list of chromosomes e.g chr1 or chr1,chr2,chr3 (default is use all chromosomes)
+    -weights            file with callability (defaults to all positions being called)
+    -mutrates           file with mutation rates (default is mutation rate is uniform)
+    -param              markov parameters file (default is human/neanderthal like parameters)
+    -out                outputfile prefix <out>.hap1_sim(0-n).txt and <out>.hap2_sim(0-n).txt if -haploid option is used or <out>.diploid_(0-n).txt (default is stdout)
+    -window_size        size of bins (default is 1000 bp)
+    -haploid            Change from using diploid data to haploid data (default is diploid)
+    -samples            Number of simulated paths for the inhomogeneous markov chain (default is 100)
+    -admixpop           Annotate using vcffile with admixing population (default is none)
     -extrainfo          Add variant position for each SNP (default is off)
 ```
 
@@ -165,19 +183,11 @@ chr1   0   50000000
 chr2   0   50000000
 ```
 
-mutrates.bed. This is the normalized mutation rate across the genome (in bins of 1 Mb).
+mutrates.bed. This is the normalized mutation rate across the genome.
 
 ```note
-chr1  0        1000000   1
-chr1  1000000  2000000   1
-chr1  2000000  3000000   1
-chr1  3000000  4000000   1
-chr1  4000000  5000000   1
-chr1  5000000  6000000   1
-chr1  6000000  7000000   1
-chr1  7000000  8000000   1
-chr1  8000000  9000000   1
-chr1  9000000  10000000  1
+chr1   0   50000000   1
+chr2   0   50000000   1
 ```
 
 Initialguesses.json. This is our initial guesses when training the model - note these are different from those we simulated from.
@@ -200,6 +210,7 @@ We can find the best fitting parameters using BaumWelsch training. Here is how y
 > starting_probabilities = [0.5, 0.5]
 > transitions = [[0.99, 0.01], [0.02, 0.98]]
 > emissions = [0.03, 0.3]
+> chromosomes to use: All
 > number of windows: 99970 . Number of snps =  4230
 > total callability: 1.0
 > average mutation rate per bin: 1.0
@@ -208,13 +219,13 @@ We can find the best fitting parameters using BaumWelsch training. Here is how y
 > Haploid False
 ----------------------------------------
 iteration  loglikelihood  start1  start2  emis1   emis2   trans1_1  trans2_2
-0          -18123.4432    0.5     0.5     0.03    0.3     0.99      0.98
-1          -17506.017     0.96    0.04    0.035   0.2202  0.9969    0.9242
-2          -17487.7921    0.971   0.029   0.0369  0.2235  0.9974    0.9141
+0          -18123.4598    0.5     0.5     0.03    0.3     0.99      0.98
+1          -17506.0258    0.96    0.04    0.035   0.2202  0.9969    0.9242
+2          -17487.8       0.971   0.029   0.0369  0.2235  0.9974    0.9141
 ...
-16         -17401.3802    0.994   0.006   0.0398  0.4584  0.9999    0.9806
-17         -17401.3786    0.994   0.006   0.0398  0.4586  0.9999    0.9807
-18         -17401.3783    0.994   0.006   0.0398  0.4587  0.9999    0.9808
+16         -17401.3853    0.994   0.006   0.0398  0.4584  0.9999    0.9806
+17         -17401.3838    0.994   0.006   0.0398  0.4586  0.9999    0.9807
+18         -17401.3835    0.994   0.006   0.0398  0.4587  0.9999    0.9808
 
 
 # run without mutrate and weights (only do this for simulated data)
@@ -230,36 +241,37 @@ We can now decode the data with the best parameters that maximize the likelihood
 > starting_probabilities = [0.994, 0.006]
 > transitions = [[1.0, 0.0], [0.019, 0.981]]
 > emissions = [0.04, 0.459]
+> chromosomes to use: All
 > number of windows: 99970 . Number of snps =  4230
 > total callability: 1.0
 > average mutation rate per bin: 1.0
-> Output is /dev/stdout
+> Output prefix is /dev/stdout
 > Window size is 1000 bp
 > Haploid False
 ----------------------------------------
 chrom  start     end       length    state    mean_prob  snps
-chr1   0         7233000   7234000   Human    0.9995     287
-chr1   7234000   7246000   13000     Archaic  0.90427    9
-chr1   7247000   21618000  14372000  Human    0.99946    610
-chr1   21619000  21673000  55000     Archaic  0.9697     22
-chr1   21674000  26859000  5186000   Human    0.99878    204
-chr1   26860000  26941000  82000     Archaic  0.971      36
-chr1   26942000  49989000  23048000  Human    0.99982    863
-chr2   0         6793000   6794000   Human    0.99972    237
-chr2   6794000   6822000   29000     Archaic  0.95461    14
-chr2   6823000   12646000  5824000   Human    0.99927    244
-chr2   12647000  12745000  99000     Archaic  0.97413    55
-chr2   12746000  15461000  2716000   Human    0.99881    125
-chr2   15462000  15547000  86000     Archaic  0.93728    38
-chr2   15548000  32626000  17079000  Human    0.99951    709
-chr2   32627000  32695000  69000     Archaic  0.98305    31
-chr2   32696000  41087000  8392000   Human    0.9995     360
-chr2   41088000  41178000  91000     Archaic  0.96092    43
-chr2   41179000  49952000  8774000   Human    0.99789    328
-chr2   49953000  49977000  25000     Archaic  0.98501    13
+chr1   0         7234000   7234000   Human    0.9995     287
+chr1   7234000   7247000   13000     Archaic  0.90427    9
+chr1   7247000   21619000  14372000  Human    0.99946    610
+chr1   21619000  21674000  55000     Archaic  0.9697     22
+chr1   21674000  26860000  5186000   Human    0.99878    204
+chr1   26860000  26942000  82000     Archaic  0.971      36
+chr1   26942000  49991000  23049000  Human    0.99982    864
+chr2   0         6794000   6794000   Human    0.99972    237
+chr2   6794000   6823000   29000     Archaic  0.95461    14
+chr2   6823000   12647000  5824000   Human    0.99927    244
+chr2   12647000  12746000  99000     Archaic  0.97413    55
+chr2   12746000  15462000  2716000   Human    0.99881    125
+chr2   15462000  15548000  86000     Archaic  0.93728    38
+chr2   15548000  32627000  17079000  Human    0.99951    709
+chr2   32627000  32696000  69000     Archaic  0.98305    31
+chr2   32696000  41088000  8392000   Human    0.9995     360
+chr2   41088000  41179000  91000     Archaic  0.96092    43
+chr2   41179000  49953000  8774000   Human    0.99789    328
+chr2   49953000  49979000  26000     Archaic  0.98515    14
 
 # Again here you could ommit weights and mutationrates. Actually one could also ommit trained.json because then the model defaults to using the parameters we used the generated the data
-> hmmix decode -obs=obs.txt
+> hmmix decode -obs=obs.txt -param=trained.json
 ```
 
 ---
@@ -269,7 +281,10 @@ chr2   49953000  49977000  25000     Archaic  0.98501    13
 ---
 
 The whole pipeline we will run looks like this. In the following section we will go through all the steps on the way
-NOTE: The outgroup files, mutation rate files and callability files are now premade! They can be downloaded in hg38 and hg19 here: https://doi.org/10.5281/zenodo.10806733
+
+NOTE: The outgroup files, mutation rate files, reference genomes, ancestral alleles and callability files and ancestral allele files are now premade!
+They can be downloaded in hg38 and hg19 here: <https://doi.org/10.5281/zenodo.11194283>
+
 But keep reading along if you want to know HOW the files were generated!
 
 ```note
@@ -312,10 +327,11 @@ ftp://ftp.ensembl.org/pub/release-74/fasta/ancestral_alleles/homo_sapiens_ancest
 wget 'ftp://hgdownload.soe.ucsc.edu/goldenPath/hg19/bigZips/chromFa.tar.gz' -O chromFa.tar.gz
 
 # Archaic variants (Altai, Vindija, Chagyrskaya and Denisova in hg19)
-https://zenodo.org/record/7246376#.Y1cRBkrMJH4
+https://zenodo.org/records/7246376
+
 ```
 
-For this example we will use all individuals from 'YRI','MSL' and 'ESN' as outgroup individuals. While we will only be decoding hG00096 in this example you can add as many individuals as you want to the ingroup.  
+For this example we will use all individuals from 'YRI','MSL' and 'ESN' as outgroup individuals. While we will only be decoding HG00096 in this example you can add as many individuals as you want to the ingroup.  
 
 ```json
 {
@@ -339,10 +355,10 @@ For this example we will use all individuals from 'YRI','MSL' and 'ESN' as outgr
 First we need to find a set of variants found in the outgroup. We can use the wildcard character to loop through all bcf files. If you dont have ancestral information you can skip the ancestral argument.
 
 ```bash
-(took an hour) > hmmix create_outgroup -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_*.fa
+(took an hour) > hmmix create_outgroup -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_*.fa 
 
 # Alternative usage (if you only have a few individual in the outgroup you can also provide a comma separated list)
-> hmmix create_outgroup -ind=HG02922,HG02923,HG02938 -vcf=*.bcf -weights=strickmask.bed -out=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_*.fa
+> hmmix create_outgroup -ind=HG02922,HG02923,HG02938 -vcf=*.bcf -weights=strickmask.bed -out=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_*.fa 
 
 # Alternative usage (if you have no ancestral information)
 > hmmix create_outgroup -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=outgroup.txt 
@@ -356,7 +372,7 @@ First we need to find a set of variants found in the outgroup. We can use the wi
 Something to note is that if you use an outgroup vcffile (like 1000 genomes) and an ingroup vcf file from a different dataset (like SGDP) there is an edge case which could occur. There could be recurrent mutations where every individual in 1000 genome has the derived variant and one individual in SGDP where the derived variant has mutated back to the ancestral allele. This means that this position will not be present in the outgroup file. However if a recurrent mutation occurs it will look like multiple individuals in the ingroup file have the mutation. This does not happen often but just in case you can create the outgroup file and adding the sites which are fixed derived in all individuals using the reference genome:
 
 ```bash
-# Alternative usage (if you want to remove sites which are fixed derived in your outgroup/ingroup)
+# Recommended usage (if you want to remove sites which are fixed derived in your outgroup/ingroup)
 > hmmix create_outgroup -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_*.fa -refgenome=*fa
 ```
 
@@ -438,21 +454,22 @@ Now for training the HMM parameters and decoding
 > starting_probabilities = [0.98, 0.02]
 > transitions = [[1.0, 0.0], [0.02, 0.98]]
 > emissions = [0.04, 0.4]
+> chromosomes to use: All
 > number of windows: 2877010 . Number of snps =  129734
 > total callability: 0.72
 > average mutation rate per bin: 1.0
-> Output is trained.HG00096_new.json
+> Output is trained.HG00096.json
 > Window size is 1000 bp
 > Haploid False
 ----------------------------------------
 iteration  loglikelihood  start1  start2  emis1   emis2   trans1_1  trans2_2
-0          -492288.9165   0.98    0.02    0.04    0.4     0.9999    0.98
-1          -488899.7271   0.961   0.039   0.0483  0.3913  0.9994    0.986
-2          -488755.4068   0.958   0.042   0.0481  0.3911  0.9993    0.9835
+0          -492287.8643   0.98    0.02    0.04    0.4     0.9999    0.98
+1          -488898.6051   0.961   0.039   0.0483  0.3913  0.9994    0.986
+2          -488754.2455   0.958   0.042   0.0481  0.3911  0.9993    0.9835
 ...
-19         -488642.2737   0.954   0.046   0.047   0.3862  0.9989    0.9771
-20         -488642.2723   0.954   0.046   0.047   0.3862  0.9989    0.9771
-21         -488642.2716   0.954   0.046   0.047   0.3862  0.9989    0.9771
+19         -488641.0769   0.954   0.046   0.047   0.3862  0.9989    0.9771
+20         -488641.0755   0.954   0.046   0.047   0.3862  0.9989    0.9771
+21         -488641.0748   0.954   0.046   0.047   0.3862  0.9989    0.9771
 ```
 
 ---
@@ -466,6 +483,7 @@ iteration  loglikelihood  start1  start2  emis1   emis2   trans1_1  trans2_2
 > starting_probabilities = [0.954, 0.046]
 > transitions = [[0.999, 0.001], [0.023, 0.977]]
 > emissions = [0.047, 0.386]
+> chromosomes to use: All
 > number of windows: 2877010 . Number of snps =  129734
 > total callability: 0.72
 > average mutation rate per bin: 1.0
@@ -474,14 +492,14 @@ iteration  loglikelihood  start1  start2  emis1   emis2   trans1_1  trans2_2
 > Haploid False
 ----------------------------------------
 chrom  start    end      length   state    mean_prob  snps
-1      0        2987000  2988000  Human    0.98484    91
-1      2988000  2996000  9000     Archaic  0.71815    6
-1      2997000  3424000  428000   Human    0.98944    30
-1      3425000  3451000  27000    Archaic  0.95652    22
-1      3452000  4301000  850000   Human    0.98203    36
-1      4302000  4360000  59000    Archaic  0.84636    20
-1      4361000  4499000  139000   Human    0.97136    4
-1      4500000  4509000  10000    Archaic  0.84456    7
+1      0        2988000  2988000  Human    0.98484    91
+1      2988000  2997000  9000     Archaic  0.71819    6
+1      2997000  3425000  428000   Human    0.98944    30
+1      3425000  3452000  27000    Archaic  0.95652    22
+1      3452000  4302000  850000   Human    0.98203    36
+1      4302000  4361000  59000    Archaic  0.84636    20
+1      4361000  4500000  139000   Human    0.97136    4
+1      4500000  4510000  10000    Archaic  0.84457    7
 ```
 
 You can also save to an output file with the command:
@@ -496,7 +514,7 @@ This will create a file named HG00096.decoded.diploid.txt because the default op
 
 ### Training and decoding with phased data
 
-It is also possible to tell the model that the data is phased with the -haploid parameter. For that we first need to train the parameters for haploid data and then decode. Training the model on phased data is done like this - and we also remember to change the name of the parameter file to include phased so future versions of ourselves don't forget. Another thing to note is that the number of snps is bigger than before 134799 vs 129149. This is because the program is counting snps on both haplotypes and homozygotes will be counted twice!
+It is also possible to tell the model that the data is phased with the -haploid parameter. For that we first need to train the parameters for haploid data and then decode. Training the model on phased data is done like this - and we also remember to change the name of the parameter file to include phased so future versions of ourselves don't forget. Another thing to note is that the number of snps is bigger than before 135411 vs 129734. This is because the program is counting snps on both haplotypes and homozygotes will be counted twice!
 
 ```note
 (took 4 min) > hmmix train  -obs=obs.HG00096.txt -weights=strickmask.bed -mutrates=mutationrate.bed -out=trained.HG00096.phased.json -haploid
@@ -505,6 +523,7 @@ It is also possible to tell the model that the data is phased with the -haploid 
 > starting_probabilities = [0.98, 0.02]
 > transitions = [[1.0, 0.0], [0.02, 0.98]]
 > emissions = [0.04, 0.4]
+> chromosomes to use: All
 > number of windows: 5754020 . Number of snps =  135411
 > total callability: 0.72
 > average mutation rate per bin: 1.0
@@ -513,13 +532,13 @@ It is also possible to tell the model that the data is phased with the -haploid 
 > Haploid True
 ----------------------------------------
 iteration  loglikelihood  start1  start2  emis1   emis2   trans1_1  trans2_2
-0          -597753.9141   0.98    0.02    0.04    0.4     0.9999    0.98
-1          -585032.3914   0.983   0.017   0.0261  0.4026  0.9998    0.9853
-2          -584451.0968   0.979   0.021   0.0252  0.373   0.9996    0.9826
+0          -597750.7043   0.98    0.02    0.04    0.4     0.9999    0.98
+1          -585028.8828   0.983   0.017   0.0261  0.4026  0.9998    0.9853
+2          -584447.5809   0.979   0.021   0.0252  0.373   0.9996    0.9826
 ...
-19         -584134.532    0.972   0.028   0.0241  0.3367  0.9993    0.9758
-20         -584134.5305   0.972   0.028   0.0241  0.3366  0.9993    0.9758
-21         -584134.5297   0.972   0.028   0.0241  0.3366  0.9993    0.975
+19         -584131.0153   0.972   0.028   0.0241  0.3367  0.9993    0.9758
+20         -584131.0138   0.972   0.028   0.0241  0.3367  0.9993    0.9758
+21         -584131.013    0.972   0.028   0.0241  0.3366  0.9993    0.9758
 ```
 
 Below I am only showing the first archaic segments on chromosome 1 for each haplotype (note you have to scroll down after chrom 22 before the new haplotype begins). The seem to fall more or less in the same places as when we used diploid data.
@@ -531,24 +550,25 @@ Below I am only showing the first archaic segments on chromosome 1 for each hapl
 > starting_probabilities = [0.972, 0.028]
 > transitions = [[0.999, 0.001], [0.024, 0.976]]
 > emissions = [0.024, 0.337]
+> chromosomes to use: All
 > number of windows: 5754020 . Number of snps =  135411
 > total callability: 0.72
 > average mutation rate per bin: 1.0
-> Output prefix is HG00096.decoded
+> Output prefix is /dev/stdout
 > Window size is 1000 bp
 > Haploid True
 ----------------------------------------
 hap1
 chrom  start    end      length  state    mean_prob  snps
-1      2162000  2184000  23000   Archaic  0.61055    6
-1      3425000  3451000  27000   Archaic  0.96595    22
+1      2162000  2185000  23000   Archaic  0.61054    6
+1      3425000  3452000  27000   Archaic  0.96595    22
 
 ...
 hap2
-1      2780000  2802000  23000   Archaic  0.61948    7
-1      4302000  4336000  35000   Archaic  0.94008    13
-1      4500000  4510000  11000   Archaic  0.87592    7
-1      4989000  4999000  11000   Archaic  0.57897    4
+1      2780000  2803000  23000   Archaic  0.61948    7
+1      4302000  4337000  35000   Archaic  0.94008    13
+1      4500000  4511000  11000   Archaic  0.87592    7
+1      4989000  5000000  11000   Archaic  0.579      4
 ```
 
 You can also save to an output file with the command:
@@ -563,13 +583,12 @@ This will create two files named HG00096.decoded.hap1.txt and HG00096.decoded.ha
 
 ### Annotate with known admixing population
 
-Even though this method does not use archaic reference genomes for finding segments you can still use them to annotate your segments. 
-
+Even though this method does not use archaic reference genomes for finding segments you can still use them to annotate your segments.
 I have uploaded a VCF file containing 4 high coverage archaic genomes (3 Neanderthals and 1 Denisovan) here:
 
-https://zenodo.org/records/7246376 (hg19 - the one I use in this example)
+<https://zenodo.org/records/7246376> (hg19 - the one I use in this example)
 
-https://zenodo.org/records/10806726 (hg38)
+<https://zenodo.org/records/10806726> (hg38)
 
 If you have a vcf from the population that admixed in VCF/BCF format you can write this:
 
@@ -580,6 +599,7 @@ If you have a vcf from the population that admixed in VCF/BCF format you can wri
 > starting_probabilities = [0.954, 0.046]
 > transitions = [[0.999, 0.001], [0.023, 0.977]]
 > emissions = [0.047, 0.386]
+> chromosomes to use: All
 > number of windows: 2877010 . Number of snps =  129734
 > total callability: 0.72
 > average mutation rate per bin: 1.0
@@ -612,13 +632,13 @@ bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_12.bcf
 bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_13.bcf
 
 chrom  start     end       length  state    mean_prob  snps  admixpopvariants  AltaiNeandertal  Vindija33.19  Denisova  Chagyrskaya-Phalanx
-1      2988000   2996000   9000    Archaic  0.71815    6     4                 4                4             1         4
-1      3425000   3451000   27000   Archaic  0.95652    22    17                17               15            3         17
-1      4302000   4360000   59000   Archaic  0.84636    20    12                11               12            11        11
-1      4500000   4509000   10000   Archaic  0.84456    7     5                 4                5             4         5
-1      5339000   5346000   8000    Archaic  0.58909    4     3                 2                3             0         3
-1      9322000   9354000   33000   Archaic  0.8475     9     0                 0                0             0         0
-1      12599000  12653000  55000   Archaic  0.9142     18    11                4                11            0         10
+1      2988000   2997000   9000    Archaic  0.71819    6     4                 4                4             1         4
+1      3425000   3452000   27000   Archaic  0.95652    22    17                17               15            3         17
+1      4302000   4361000   59000   Archaic  0.84636    20    12                11               12            11        11
+1      4500000   4510000   10000   Archaic  0.84457    7     5                 4                5             4         5
+1      5339000   5347000   8000    Archaic  0.58914    4     3                 2                3             0         3
+1      9322000   9355000   33000   Archaic  0.84751    9     0                 0                0             0         0
+1      12599000  12654000  55000   Archaic  0.9142     18    11                4                11            0         10
 
 ```
 
@@ -646,7 +666,7 @@ initial_hmm_params = HMMParam(state_names = ['Human', 'Archaic'],
                               emissions = [0.03, 0.3]) 
 
 # Create test data
-obs, chroms, starts, variants, weights, mutrates  = create_test_data(50000, write_out_files = False)
+obs, chroms, starts, variants, mutrates, weights  = create_test_data(50000, write_out_files = False)
 
 # Train model
 hmm_parameters = TrainModel(obs, mutrates, weights, initial_hmm_params)
@@ -655,7 +675,7 @@ hmm_parameters = TrainModel(obs, mutrates, weights, initial_hmm_params)
 segments = DecodeModel(obs, chroms, starts, variants, mutrates, weights, hmm_parameters)
 
 for segment_info in segments:
-    chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, ploidity, variants = segment_info
+    chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, ploidity, called_sequence, average_mutation_rate, variants = segment_info
     print(chrom, genome_start,  genome_end, genome_length, state, mean_prob, snp_counter, sep = '\t')
 
 
@@ -674,7 +694,7 @@ obs, chroms, starts, variants, mutrates, weights = Load_observations_weights_mut
 segments = DecodeModel(obs, chroms, starts, variants, mutrates, weights, hmm_parameters)
 
 for segment_info in segments:  
-    chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, ploidity, variants = segment_info
+    chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, ploidity, called_sequence, average_mutation_rate, variants = segment_info
     print(chrom, genome_start,  genome_end, genome_length, state, mean_prob, snp_counter, sep = '\t')
 
 
@@ -684,6 +704,3 @@ And that is it! Now you have run the model and gotten a set of parameters that y
 
 If you have any questions about the use of the scripts, if you find errors or if you have feedback you can contact my here (make an issue) or write to:
 lauritsskov2@gmail.com
-
-
-
