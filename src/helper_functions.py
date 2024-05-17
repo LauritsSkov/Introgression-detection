@@ -203,6 +203,27 @@ def load_fasta(fasta_file):
 
     return fasta_sequence
 
+def sortby(x):
+    '''
+    This function is used in the sorted() function. It will sort first by numeric values, then strings then other symbols
+
+    Usage:
+    mylist = ['1', '12', '2', 3, 'MT', 'Y']
+    sortedlist = sorted(mylist, key=sortby)
+    returns ['1', '2', 3, '12', 'MT', 'Y']
+    '''
+
+    lower_case_letters = 'abcdefghijklmnopqrstuvwxyz'
+    if x.isnumeric():
+        return int(x)
+    elif type(x) == str and len(x) > 0:
+        if x[0].lower() in lower_case_letters:
+            return 1e6 + lower_case_letters.index(x[0].lower())
+        else:
+            return 2e6
+    else:
+        return 3e6
+    
 
 def get_consensus(infiles):
     '''
@@ -240,31 +261,12 @@ def get_consensus(infiles):
                 matches = len([x for x in infiles if prefix in x and postfix in x])
 
                 if matches == len(infiles):
-                    values = [x.replace(prefix, '').replace(postfix,'') for x in infiles]
-                    return prefix, postfix, set(values)
+                    values = set([x.replace(prefix, '').replace(postfix,'') for x in infiles])
+                    return prefix, postfix, sorted(values, key=sortby)
     else:
         return None, None, None
 
-def sortby(x):
-    '''
-    This function is used in the sorted() function. It will sort first by numeric values, then strings then other symbols
 
-    Usage:
-    mylist = ['1', '12', '2', 3, 'MT', 'Y']
-    sortedlist = sorted(mylist, key=sortby)
-    returns ['1', '2', 3, '12', 'MT', 'Y']
-    '''
-
-    lower_case_letters = 'abcdefghijklmnopqrstuvwxyz'
-    if x.isnumeric():
-        return int(x)
-    elif type(x) == str and len(x) > 0:
-        if x[0].lower() in lower_case_letters:
-            return 1e6 + lower_case_letters.index(x[0].lower())
-        else:
-            return 2e6
-    else:
-        return 3e6
     
 
 
@@ -429,22 +431,25 @@ def combined_files(ancestralfiles, vcffiles):
     prefix1, postfix1, values1 = get_consensus(vcffiles)
     prefix2, postfix2, values2 = get_consensus(ancestralfiles)
 
-    
     # No ancestral files
     if ancestralfiles == ['']:
         ancestralfiles = [None for _ in vcffiles]
+        vcffiles = [f'{prefix1}{x}{postfix1}' for x in values1]
         return ancestralfiles, vcffiles
 
     # Same length
     elif len(ancestralfiles) == len(vcffiles):
+        vcffiles = [f'{prefix1}{x}{postfix1}' for x in values1]
+        ancestralfiles = [f'{prefix2}{x}{postfix2}' for x in values2]
         return ancestralfiles, vcffiles
 
     # diff lengthts (both longer than 1)       
     elif len(ancestralfiles) > 1 and len(vcffiles) > 1:
+
         vcffiles = []
         ancestralfiles = []
 
-        for joined in sorted(values1.intersection(values2), key=sortby):
+        for joined in sorted(set(values1).intersection(set(values2)), key=sortby):
             vcffiles.append(''.join([prefix1, joined, postfix1]))
             ancestralfiles.append(''.join([prefix2, joined, postfix2]))
         return ancestralfiles, vcffiles
