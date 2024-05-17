@@ -10,7 +10,7 @@
 
 The outgroup files, mutation rate files, reference genomes, ancestral alleles and callability files and ancestral allele files are now premade!
 
-<https://doi.org/10.5281/zenodo.11194283> (hg19 and hg38)
+<https://doi.org/10.5281/zenodo.11212339> (hg19 and hg38)
 Note the old version (<https://doi.org/10.5281/zenodo.10806733>) did not contain the ancestral alleles or reference genome and there was some missing data on the X chromosome.
 
 VCF file containing 4 high coverage archaic genomes (Altai, Vindija and Chagyrskaya Neanderthals and Denisovan) here:
@@ -283,14 +283,14 @@ chr2   49953000  49979000  26000     Archaic  0.98515    14
 The whole pipeline we will run looks like this. In the following section we will go through all the steps on the way
 
 NOTE: The outgroup files, mutation rate files, reference genomes, ancestral alleles and callability files and ancestral allele files are now premade!
-They can be downloaded in hg38 and hg19 here: <https://doi.org/10.5281/zenodo.11194283>
+They can be downloaded in hg38 and hg19 here: <https://doi.org/10.5281/zenodo.11212339>
 
 But keep reading along if you want to know HOW the files were generated!
 
 ```note
-hmmix create_outgroup -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_*.fa -refgenome=referencegenome/*fa
+hmmix create_outgroup -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=outgroup.txt -ancestral=hg19_ancestral/homo_sapiens_ancestor_*.fa -refgenome=hg19_refgenome/*fa
 hmmix mutation_rate -outgroup=outgroup.txt  -weights=strickmask.bed -window_size=1000000 -out mutationrate.bed
-hmmix create_ingroup  -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=obs -outgroup=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_*.fa
+hmmix create_ingroup  -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=obs -outgroup=outgroup.txt -ancestral=hg19_ancestral/homo_sapiens_ancestor_*.fa
 hmmix train  -obs=obs.HG00096.txt -weights=strickmask.bed -mutrates=mutationrate.bed -out=trained.HG00096.json 
 hmmix decode -obs=obs.HG00096.txt -weights=strickmask.bed -mutrates=mutationrate.bed -param=trained.HG00096.json 
 ```
@@ -321,7 +321,7 @@ sed 's/^chr\|%$//g' 20141020.strict_mask.whole_genome.bed | awk '{print $1"\t"$2
 ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel
 
 # Ancestral information
-ftp://ftp.ensembl.org/pub/release-74/fasta/ancestral_alleles/homo_sapiens_ancestor_GRCh37_e71.tar.bz2
+ftp://ftp.ensembl.org/pub/release-74/fasta/ancestral_alleles/hg19_ancestral.tar.bz2
 
 # Reference genome
 wget 'ftp://hgdownload.soe.ucsc.edu/goldenPath/hg19/bigZips/chromFa.tar.gz' -O chromFa.tar.gz
@@ -352,28 +352,49 @@ For this example we will use all individuals from 'YRI','MSL' and 'ESN' as outgr
 
 ### Finding snps which are derived in the outgroup
 
-First we need to find a set of variants found in the outgroup. We can use the wildcard character to loop through all bcf files. If you dont have ancestral information you can skip the ancestral argument.
+First we need to find a set of variants found in the outgroup. We can use the wildcard character to loop through all bcf files. It is best if you have files with the ancestral alleles (in FASTA format) and the reference genome (in FASTA format) but the program will run without.
 
-```bash
-(took an hour) > hmmix create_outgroup -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_*.fa 
+Something to note is that if you use an outgroup vcffile (like 1000 genomes) and an ingroup vcf file from a different dataset (like SGDP) there is an edge case which could occur. There could be recurrent mutations where every individual in 1000 genome has the derived variant and one individual in SGDP where the derived variant has mutated back to the ancestral allele. This means that this position will not be present in the outgroup file. However if a recurrent mutation occurs it will look like multiple individuals in the ingroup file have the mutation. This does not happen often but that is why I recommend having files with the ancestral allele and reference genome information.
 
-# Alternative usage (if you only have a few individual in the outgroup you can also provide a comma separated list)
-> hmmix create_outgroup -ind=HG02922,HG02923,HG02938 -vcf=*.bcf -weights=strickmask.bed -out=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_*.fa 
+```note
+# Recommended usage (if you want to remove sites which are fixed derived in your outgroup/ingroup). This is the file from zenodo. 
+(took two hours) > hmmix create_outgroup -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=outgroup.txt -ancestral=hg19_ancestral/homo_sapiens_ancestor_*.fa -refgenome=hg19_refgenome/*fa
+----------------------------------------
+> Outgroup individuals: 292
+> Using vcf and ancestral files
+vcffile: chr1.bcf ancestralfile:  hg19_ancestral/homo_sapiens_ancestor_1.fa reffile:  hg19_refgenome/chr1.fa
+vcffile: chr2.bcf ancestralfile:  hg19_ancestral/homo_sapiens_ancestor_2.fa reffile:  hg19_refgenome/chr2.fa
+vcffile: chr3.bcf ancestralfile:  hg19_ancestral/homo_sapiens_ancestor_3.fa reffile:  hg19_refgenome/chr3.fa
+vcffile: chr4.bcf ancestralfile:  hg19_ancestral/homo_sapiens_ancestor_4.fa reffile:  hg19_refgenome/chr4.fa
+vcffile: chr5.bcf ancestralfile:  hg19_ancestral/homo_sapiens_ancestor_5.fa reffile:  hg19_refgenome/chr5.fa
+vcffile: chr6.bcf ancestralfile:  hg19_ancestral/homo_sapiens_ancestor_6.fa reffile:  hg19_refgenome/chr6.fa
+vcffile: chr7.bcf ancestralfile:  hg19_ancestral/homo_sapiens_ancestor_7.fa reffile:  hg19_refgenome/chr7.fa
+vcffile: chr8.bcf ancestralfile:  hg19_ancestral/homo_sapiens_ancestor_8.fa reffile:  hg19_refgenome/chr8.fa
+vcffile: chr9.bcf ancestralfile:  hg19_ancestral/homo_sapiens_ancestor_9.fa reffile:  hg19_refgenome/chr9.fa
+vcffile: chr10.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_10.fa reffile: hg19_refgenome/chr10.fa
+vcffile: chr11.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_11.fa reffile: hg19_refgenome/chr11.fa
+vcffile: chr12.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_12.fa reffile: hg19_refgenome/chr12.fa
+vcffile: chr13.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_13.fa reffile: hg19_refgenome/chr13.fa
+vcffile: chr14.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_14.fa reffile: hg19_refgenome/chr14.fa
+vcffile: chr15.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_15.fa reffile: hg19_refgenome/chr15.fa
+vcffile: chr16.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_16.fa reffile: hg19_refgenome/chr16.fa
+vcffile: chr17.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_17.fa reffile: hg19_refgenome/chr17.fa
+vcffile: chr18.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_18.fa reffile: hg19_refgenome/chr18.fa
+vcffile: chr19.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_19.fa reffile: hg19_refgenome/chr19.fa
+vcffile: chr20.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_20.fa reffile: hg19_refgenome/chr20.fa
+vcffile: chr21.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_21.fa reffile: hg19_refgenome/chr21.fa
+vcffile: chr22.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_22.fa reffile: hg19_refgenome/chr22.fa
+vcffile: chrX.bcf ancestralfile:  hg19_ancestral/homo_sapiens_ancestor_X.fa reffile:  hg19_refgenome/chrX.fa
 
-# Alternative usage (if you have no ancestral information)
-> hmmix create_outgroup -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=outgroup.txt 
-
-# Alternative usage (if you only want to run the model on a subset of chromosomes, with or without ancestral information)
-> hmmix create_outgroup -ind=individuals.json -vcf=chr1.bcf,chr2.bcf -weights=strickmask.bed -out=outgroup.txt
-
-> hmmix create_outgroup -ind=individuals.json -vcf=chr1.bcf,chr2.bcf -weights=strickmask.bed -out=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_1.fa,homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_2.fa
+> Callability file: strickmask.bed
+> Writing output to: outgroup.txt
+----------------------------------------
 ```
 
-Something to note is that if you use an outgroup vcffile (like 1000 genomes) and an ingroup vcf file from a different dataset (like SGDP) there is an edge case which could occur. There could be recurrent mutations where every individual in 1000 genome has the derived variant and one individual in SGDP where the derived variant has mutated back to the ancestral allele. This means that this position will not be present in the outgroup file. However if a recurrent mutation occurs it will look like multiple individuals in the ingroup file have the mutation. This does not happen often but just in case you can create the outgroup file and adding the sites which are fixed derived in all individuals using the reference genome:
+Here it is important to check that hmmix matches up the reference, ancestral and vcffiles correctly e.g. chr1.bcf should fit with hg19_ancestral/homo_sapiens_ancestor_1.fa and hg19_refgenome/chr1.fa for instance. If you see an issue here its better to give the files as commaseparated values.
 
-```bash
-# Recommended usage (if you want to remove sites which are fixed derived in your outgroup/ingroup)
-> hmmix create_outgroup -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_*.fa -refgenome=*fa
+```note
+hmmix create_outgroup -ind=individuals.json -vcf=chr1.bcf,chr2.bcf,chr3.bcf,chr4.bcf,chr5.bcf,chr6.bcf,chr7.bcf,chr8.bcf,chr9.bcf,chr10.bcf,chr11.bcf,chr12.bcf,chr13.bcf,chr14.bcf,chr15.bcf,chr16.bcf,chr17.bcf,chr18.bcf,chr19.bcf,chr20.bcf,chr21.bcf,chr22.bcf,chrX.bcf -weights=strickmask.bed -out=outgroup.txt -ancestral=hg19_ancestral/homo_sapiens_ancestor_1.fa,hg19_ancestral/homo_sapiens_ancestor_2.fa,hg19_ancestral/homo_sapiens_ancestor_3.fa,hg19_ancestral/homo_sapiens_ancestor_4.fa,hg19_ancestral/homo_sapiens_ancestor_5.fa,hg19_ancestral/homo_sapiens_ancestor_6.fa,hg19_ancestral/homo_sapiens_ancestor_7.fa,hg19_ancestral/homo_sapiens_ancestor_8.fa,hg19_ancestral/homo_sapiens_ancestor_9.fa,hg19_ancestral/homo_sapiens_ancestor_10.fa,hg19_ancestral/homo_sapiens_ancestor_11.fa,hg19_ancestral/homo_sapiens_ancestor_12.fa,hg19_ancestral/homo_sapiens_ancestor_13.fa,hg19_ancestral/homo_sapiens_ancestor_14.fa,hg19_ancestral/homo_sapiens_ancestor_15.fa,hg19_ancestral/homo_sapiens_ancestor_16.fa,hg19_ancestral/homo_sapiens_ancestor_17.fa,hg19_ancestral/homo_sapiens_ancestor_18.fa,hg19_ancestral/homo_sapiens_ancestor_19.fa,hg19_ancestral/homo_sapiens_ancestor_20.fa,hg19_ancestral/homo_sapiens_ancestor_21.fa,hg19_ancestral/homo_sapiens_ancestor_22.fa,hg19_ancestral/homo_sapiens_ancestor_X.fa -refgenome=hg19_refgenome/chr1.fa,hg19_refgenome/chr2.fa,hg19_refgenome/chr3.fa,hg19_refgenome/chr4.fa,hg19_refgenome/chr5.fa,hg19_refgenome/chr6.fa,hg19_refgenome/chr7.fa,hg19_refgenome/chr8.fa,hg19_refgenome/chr9.fa,hg19_refgenome/chr10.fa,hg19_refgenome/chr11.fa,hg19_refgenome/chr12.fa,hg19_refgenome/chr13.fa,hg19_refgenome/chr14.fa,hg19_refgenome/chr15.fa,hg19_refgenome/chr16.fa,hg19_refgenome/chr17.fa,hg19_refgenome/chr18.fa,hg19_refgenome/chr19.fa,hg19_refgenome/chr20.fa,hg19_refgenome/chr21.fa,hg19_refgenome/chr22.fa,hg19_refgenome/chrX.fa
 ```
 
 ---
@@ -399,32 +420,33 @@ We can use the number of variants in the outgroup to estimate the substitution r
 Keep variants that are not found to be derived in the outgroup for each individual in ingroup. You can also speficy a single individual or a comma separated list of individuals.
 
 ```note
-(took 20 min) > hmmix create_ingroup  -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=obs -outgroup=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_*.fa
+(took 20 min) > hmmix create_ingroup  -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=obs -outgroup=outgroup.txt -ancestral=hg19_ancestral/homo_sapiens_ancestor_*.fa
 ----------------------------------------
 > Ingroup individuals: 2
 > Using vcf and ancestral files
-vcffile: chr1.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_1.fa
-vcffile: chr2.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_2.fa
-vcffile: chr3.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_3.fa
-vcffile: chr4.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_4.fa
-vcffile: chr5.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_5.fa
-vcffile: chr6.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_6.fa
-vcffile: chr7.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_7.fa
-vcffile: chr8.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_8.fa
-vcffile: chr9.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_9.fa
-vcffile: chr10.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_10.fa
-vcffile: chr11.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_11.fa
-vcffile: chr12.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_12.fa
-vcffile: chr13.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_13.fa
-vcffile: chr14.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_14.fa
-vcffile: chr15.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_15.fa
-vcffile: chr16.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_16.fa
-vcffile: chr17.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_17.fa
-vcffile: chr18.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_18.fa
-vcffile: chr19.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_19.fa
-vcffile: chr20.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_20.fa
-vcffile: chr21.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_21.fa
-vcffile: chr22.bcf ancestralfile: homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_22.fa
+vcffile: chr1.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_1.fa
+vcffile: chr2.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_2.fa
+vcffile: chr3.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_3.fa
+vcffile: chr4.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_4.fa
+vcffile: chr5.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_5.fa
+vcffile: chr6.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_6.fa
+vcffile: chr7.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_7.fa
+vcffile: chr8.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_8.fa
+vcffile: chr9.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_9.fa
+vcffile: chr10.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_10.fa
+vcffile: chr11.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_11.fa
+vcffile: chr12.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_12.fa
+vcffile: chr13.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_13.fa
+vcffile: chr14.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_14.fa
+vcffile: chr15.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_15.fa
+vcffile: chr16.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_16.fa
+vcffile: chr17.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_17.fa
+vcffile: chr18.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_18.fa
+vcffile: chr19.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_19.fa
+vcffile: chr20.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_20.fa
+vcffile: chr21.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_21.fa
+vcffile: chr22.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_22.fa
+vcffile: chrX.bcf ancestralfile: hg19_ancestral/homo_sapiens_ancestor_X.fa
 
 > Using outgroup variants from: outgroup.txt 
 > Callability file: strickmask.bed 
@@ -438,7 +460,7 @@ bcftools view -m2 -M2 -v snps -s HG00097 -T strickmask.bed chr22.bcf | vcftools 
 
 
 # Different way to define which individuals are in the ingroup
-(took 20 min) > hmmix create_ingroup  -ind=HG00096,HG00097 -vcf=*.bcf -weights=strickmask.bed -out=obs -outgroup=outgroup.txt -ancestral=homo_sapiens_ancestor_GRCh37_e71/homo_sapiens_ancestor_*.fa
+(took 20 min) > hmmix create_ingroup  -ind=HG00096,HG00097 -vcf=*.bcf -weights=strickmask.bed -out=obs -outgroup=outgroup.txt -ancestral=hg19_ancestral/homo_sapiens_ancestor_*.fa
 ```
 
 ---
@@ -455,7 +477,7 @@ Now for training the HMM parameters and decoding
 > transitions = [[1.0, 0.0], [0.02, 0.98]]
 > emissions = [0.04, 0.4]
 > chromosomes to use: All
-> number of windows: 2877010 . Number of snps =  129734
+> number of windows: 3032224 . Number of snps =  129803
 > total callability: 0.72
 > average mutation rate per bin: 1.0
 > Output is trained.HG00096.json
@@ -463,13 +485,13 @@ Now for training the HMM parameters and decoding
 > Haploid False
 ----------------------------------------
 iteration  loglikelihood  start1  start2  emis1   emis2   trans1_1  trans2_2
-0          -492287.8643   0.98    0.02    0.04    0.4     0.9999    0.98
-1          -488898.6051   0.961   0.039   0.0483  0.3913  0.9994    0.986
-2          -488754.2455   0.958   0.042   0.0481  0.3911  0.9993    0.9835
+0          -495665.7379   0.98    0.02    0.04    0.4     0.9999    0.98
+1          -493092.9242   0.964   0.036   0.0459  0.3894  0.9995    0.9859
+2          -492917.6235   0.959   0.041   0.0455  0.3847  0.9993    0.9834
 ...
-19         -488641.0769   0.954   0.046   0.047   0.3862  0.9989    0.9771
-20         -488641.0755   0.954   0.046   0.047   0.3862  0.9989    0.9771
-21         -488641.0748   0.954   0.046   0.047   0.3862  0.9989    0.9771
+20         -492775.4072   0.954   0.046   0.0442  0.3725  0.9989    0.9768
+21         -492775.4058   0.954   0.046   0.0442  0.3725  0.9989    0.9768
+22         -492775.4049   0.954   0.046   0.0442  0.3725  0.9989    0.9768
 ```
 
 ---
@@ -482,9 +504,9 @@ iteration  loglikelihood  start1  start2  emis1   emis2   trans1_1  trans2_2
 > state_names = ['Human', 'Archaic']
 > starting_probabilities = [0.954, 0.046]
 > transitions = [[0.999, 0.001], [0.023, 0.977]]
-> emissions = [0.047, 0.386]
+> emissions = [0.044, 0.372]
 > chromosomes to use: All
-> number of windows: 2877010 . Number of snps =  129734
+> number of windows: 3032224 . Number of snps =  129803
 > total callability: 0.72
 > average mutation rate per bin: 1.0
 > Output prefix is /dev/stdout
@@ -492,14 +514,14 @@ iteration  loglikelihood  start1  start2  emis1   emis2   trans1_1  trans2_2
 > Haploid False
 ----------------------------------------
 chrom  start    end      length   state    mean_prob  snps
-1      0        2988000  2988000  Human    0.98484    91
-1      2988000  2997000  9000     Archaic  0.71819    6
-1      2997000  3425000  428000   Human    0.98944    30
-1      3425000  3452000  27000    Archaic  0.95652    22
-1      3452000  4302000  850000   Human    0.98203    36
-1      4302000  4361000  59000    Archaic  0.84636    20
-1      4361000  4500000  139000   Human    0.97136    4
-1      4500000  4510000  10000    Archaic  0.84457    7
+1      0        2988000  2988000  Human    0.98429    91
+1      2988000  2997000  9000     Archaic  0.76217    6
+1      2997000  3425000  428000   Human    0.98776    30
+1      3425000  3452000  27000    Archaic  0.95816    22
+1      3452000  4302000  850000   Human    0.97917    36
+1      4302000  4361000  59000    Archaic  0.867      20
+1      4361000  4500000  139000   Human    0.96854    4
+1      4500000  4510000  10000    Archaic  0.8552     7
 ```
 
 You can also save to an output file with the command:
@@ -514,7 +536,7 @@ This will create a file named HG00096.decoded.diploid.txt because the default op
 
 ### Training and decoding with phased data
 
-It is also possible to tell the model that the data is phased with the -haploid parameter. For that we first need to train the parameters for haploid data and then decode. Training the model on phased data is done like this - and we also remember to change the name of the parameter file to include phased so future versions of ourselves don't forget. Another thing to note is that the number of snps is bigger than before 135411 vs 129734. This is because the program is counting snps on both haplotypes and homozygotes will be counted twice!
+It is also possible to tell the model that the data is phased with the -haploid parameter. For that we first need to train the parameters for haploid data and then decode. Training the model on phased data is done like this - and we also remember to change the name of the parameter file to include phased so future versions of ourselves don't forget. Another thing to note is that the number of snps is bigger than before 135483 vs 129803. This is because the program is counting snps on both haplotypes and homozygotes will be counted twice!
 
 ```note
 (took 4 min) > hmmix train  -obs=obs.HG00096.txt -weights=strickmask.bed -mutrates=mutationrate.bed -out=trained.HG00096.phased.json -haploid
@@ -524,7 +546,7 @@ It is also possible to tell the model that the data is phased with the -haploid 
 > transitions = [[1.0, 0.0], [0.02, 0.98]]
 > emissions = [0.04, 0.4]
 > chromosomes to use: All
-> number of windows: 5754020 . Number of snps =  135411
+> number of windows: 6064448 . Number of snps =  135483
 > total callability: 0.72
 > average mutation rate per bin: 1.0
 > Output is trained.HG00096.phased.json
@@ -532,26 +554,26 @@ It is also possible to tell the model that the data is phased with the -haploid 
 > Haploid True
 ----------------------------------------
 iteration  loglikelihood  start1  start2  emis1   emis2   trans1_1  trans2_2
-0          -597750.7043   0.98    0.02    0.04    0.4     0.9999    0.98
-1          -585028.8828   0.983   0.017   0.0261  0.4026  0.9998    0.9853
-2          -584447.5809   0.979   0.021   0.0252  0.373   0.9996    0.9826
+0          -605433.1928   0.98    0.02    0.04    0.4     0.9999    0.98
+1          -589492.2      0.985   0.015   0.0248  0.3999  0.9998    0.9852
+2          -588823.124    0.98    0.02    0.0238  0.3671  0.9996    0.9825
 ...
-19         -584131.0153   0.972   0.028   0.0241  0.3367  0.9993    0.9758
-20         -584131.0138   0.972   0.028   0.0241  0.3367  0.9993    0.9758
-21         -584131.013    0.972   0.028   0.0241  0.3366  0.9993    0.9758
+20         -588456.6027   0.973   0.027   0.0228  0.3267  0.9993    0.9755
+21         -588456.6015   0.973   0.027   0.0228  0.3266  0.9993    0.9755
+22         -588456.6009   0.973   0.027   0.0228  0.3266  0.9993    0.9755
 ```
 
-Below I am only showing the first archaic segments on chromosome 1 for each haplotype (note you have to scroll down after chrom 22 before the new haplotype begins). The seem to fall more or less in the same places as when we used diploid data.
+Below I am only showing the first archaic segments on chromosome 1 for each haplotype (note you have to scroll down after chrom X before the new haplotype begins). The seem to fall more or less in the same places as when we used diploid data.
 
 ```note
 (took 30 sec) > hmmix decode -obs=obs.HG00096.txt -weights=strickmask.bed -mutrates=mutationrate.bed -param=trained.HG00096.phased.json -haploid
 ----------------------------------------
 > state_names = ['Human', 'Archaic']
-> starting_probabilities = [0.972, 0.028]
+> starting_probabilities = [0.973, 0.027]
 > transitions = [[0.999, 0.001], [0.024, 0.976]]
-> emissions = [0.024, 0.337]
+> emissions = [0.023, 0.327]
 > chromosomes to use: All
-> number of windows: 5754020 . Number of snps =  135411
+> number of windows: 6064448 . Number of snps =  135483
 > total callability: 0.72
 > average mutation rate per bin: 1.0
 > Output prefix is /dev/stdout
@@ -560,15 +582,15 @@ Below I am only showing the first archaic segments on chromosome 1 for each hapl
 ----------------------------------------
 hap1
 chrom  start    end      length  state    mean_prob  snps
-1      2162000  2185000  23000   Archaic  0.61054    6
-1      3425000  3452000  27000   Archaic  0.96595    22
+1      2156000  2185000  29000   Archaic  0.64711    6
+1      3425000  3452000  27000   Archaic  0.96701    22
 
 ...
 hap2
-1      2780000  2803000  23000   Archaic  0.61948    7
-1      4302000  4337000  35000   Archaic  0.94008    13
-1      4500000  4511000  11000   Archaic  0.87592    7
-1      4989000  5000000  11000   Archaic  0.579      4
+1      2780000  2803000  23000   Archaic  0.68285    7
+1      4302000  4337000  35000   Archaic  0.94244    13
+1      4500000  4511000  11000   Archaic  0.87938    7
+1      4989000  5001000  12000   Archaic  0.61874    5
 ```
 
 You can also save to an output file with the command:
@@ -598,9 +620,9 @@ If you have a vcf from the population that admixed in VCF/BCF format you can wri
 > state_names = ['Human', 'Archaic']
 > starting_probabilities = [0.954, 0.046]
 > transitions = [[0.999, 0.001], [0.023, 0.977]]
-> emissions = [0.047, 0.386]
+> emissions = [0.044, 0.372]
 > chromosomes to use: All
-> number of windows: 2877010 . Number of snps =  129734
+> number of windows: 3032224 . Number of snps =  129803
 > total callability: 0.72
 > average mutation rate per bin: 1.0
 > Output prefix is /dev/stdout
@@ -632,14 +654,14 @@ bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_12.bcf
 bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_13.bcf
 
 chrom  start     end       length  state    mean_prob  snps  admixpopvariants  AltaiNeandertal  Vindija33.19  Denisova  Chagyrskaya-Phalanx
-1      2988000   2997000   9000    Archaic  0.71819    6     4                 4                4             1         4
-1      3425000   3452000   27000   Archaic  0.95652    22    17                17               15            3         17
-1      4302000   4361000   59000   Archaic  0.84636    20    12                11               12            11        11
-1      4500000   4510000   10000   Archaic  0.84457    7     5                 4                5             4         5
-1      5339000   5347000   8000    Archaic  0.58914    4     3                 2                3             0         3
-1      9322000   9355000   33000   Archaic  0.84751    9     0                 0                0             0         0
-1      12599000  12654000  55000   Archaic  0.9142     18    11                4                11            0         10
-
+1      2988000   2997000   9000    Archaic  0.76217    6     4                 4                4             1         4
+1      3425000   3452000   27000   Archaic  0.95816    22    17                17               15            3         17
+1      4302000   4361000   59000   Archaic  0.867      20    12                11               12            11        11
+1      4500000   4510000   10000   Archaic  0.8552     7     5                 4                5             4         5
+1      5306000   5319000   13000   Archaic  0.55584    4     1                 1                1             0         1
+1      5338000   5348000   10000   Archaic  0.65033    5     3                 2                3             0         3
+1      9321000   9355000   34000   Archaic  0.86414    9     0                 0                0             0         0
+1      12599000  12655000  56000   Archaic  0.91159    18    11                4                11            0         10
 ```
 
 For the first segment there are 6 derived snps. Of these snps 4 are shared with Altai,Vindija, Denisova and Chagyrskaya. Only 1 is shared with Denisova so this segment likeli introgressed from Neanderthals
