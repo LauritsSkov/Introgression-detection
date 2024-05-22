@@ -232,7 +232,7 @@ iteration  loglikelihood  start1  start2  emis1   emis2   trans1_1  trans2_2
 > hmmix train  -obs=obs.txt -param=Initialguesses.json -out=trained.json
 ```
 
-We can now decode the data with the best parameters that maximize the likelihood and find the archaic segments:
+We can now decode the data with the best parameters that maximize the likelihood and find the archaic segments. Please note that even thought we simulated 50 Mb of sequence the last window in the decoded output is at window 49991000 for chromosome 1 and 49979000 for chromosome 2. This is because hmmix uses the position of the last SNP to determine the length of the chromosome. The last SNP on chromosome 1 is 49990559 and the last SNP on chromosome 2 is 49978752.
 
 ```note
 > hmmix decode -obs=obs.txt -weights=weights.bed -mutrates=mutrates.bed -param=trained.json
