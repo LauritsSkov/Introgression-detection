@@ -1,12 +1,12 @@
 import numpy as np
-from collections import defaultdict
 
-from hmm_functions import HMMParam, get_default_HMM_parameters, write_HMM_to_file
+from hmm_functions import HMMParam, write_HMM_to_file, read_HMM_parameters_from_file
+from helper_functions import find_runs
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Make test data
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------
-def create_test_data(data_set_length, n_chromosomes = 2, write_out_files = False):
+def create_test_data(data_set_length, n_chromosomes = 2, write_out_files = False, parameters_file = None):
     '''Create test data set of size data_set_length. Also create uniform weights and uniform mutation rates'''
     
     # Config
@@ -24,24 +24,26 @@ def create_test_data(data_set_length, n_chromosomes = 2, write_out_files = False
 
 
     # Initialization HMM parameters, prob of staring in states and print parameters to user
-    state_values = [0,1]
-    hmm_parameters = HMMParam(state_names = ['Human', 'Archaic'], 
-                    starting_probabilities = [0.98, 0.02], 
-                    transitions = [[0.9999,0.0001],[0.02,0.98]], 
-                    emissions = [0.04, 0.4])
+    hmm_parameters = read_HMM_parameters_from_file(parameters_file)
+    state_values = [x for x in range(len(hmm_parameters.state_names))]
     
-    print(f'creating {len(CHROMOSOMES)} chromosomes each with {data_set_length} kb of test data with the following parameters..\n')
+    print(f'> creating {len(CHROMOSOMES)} chromosomes each with {data_set_length} kb of test data with the following parameters..')
+    print(f'> hmm parameters file: {parameters_file}')
     print(hmm_parameters)  
 
     # Initialize data
     observations_for_obsfile = []
-    obs_counter = defaultdict(lambda: defaultdict(int))
-    variants_dict = defaultdict(lambda: defaultdict(list))   
-
-    
+    path = []
+    observations = []
+    chroms = []
+    starts = []
+    variants = []
 
     for chrom in CHROMOSOMES:
         for index in range(data_set_length):
+
+            obs_counter = 0
+            variants_list = []
             
             # Use prior dist if starting window
             if index == 0:
@@ -49,32 +51,26 @@ def create_test_data(data_set_length, n_chromosomes = 2, write_out_files = False
             else:
                 current_state = np.random.choice(state_values, p=hmm_parameters.transitions[prevstate] )
 
+            path.append(current_state)
+
             n_mutations = np.random.poisson(lam=hmm_parameters.emissions[current_state]) 
             for mutation in [int(x) for x in np.random.uniform(low=index*window_size, high=index*window_size + window_size, size=n_mutations)]: 
                 ancestral_base = np.random.choice(bases, p=base_composition)
                 derived_base = np.random.choice(bases, p=mutation_matrix[ancestral_base])
+                
                 observations_for_obsfile.append(f'{chrom}\t{mutation}\t{ancestral_base}\t{ancestral_base + derived_base}') 
-                obs_counter[chrom][index*window_size] += 1
-                variants_dict[chrom][index*window_size].append(str(mutation))
+                
+                obs_counter += 1
+                variants_list.append(str(mutation))
+
+            observations.append(obs_counter)
+            chroms.append(chrom)
+            starts.append(index * window_size)
+            variants.append(','.join(variants_list))
 
             prevstate = current_state
 
-    observations = []
-    chroms = []
-    starts = []
-    variants = []
-    for chrom in CHROMOSOMES:
-        lastwindow = max(obs_counter[chrom]) + window_size
-
-        for window in range(0, lastwindow, window_size):
-            observations.append(obs_counter[chrom][window])
-            chroms.append(chrom)
-            starts.append(window)
-            variants.append(','.join(variants_dict[chrom][window]))
-
     
-    weights = np.ones(len(observations))
-    mutrates = np.ones(len(observations))
 
     if write_out_files:
         # Make obs file
@@ -93,5 +89,23 @@ def create_test_data(data_set_length, n_chromosomes = 2, write_out_files = False
         initial_guess = HMMParam(['Human', 'Archaic'], [0.5, 0.5], [[0.99,0.01],[0.02,0.98]], [0.03, 0.3]) 
         write_HMM_to_file(initial_guess, 'Initialguesses.json')
 
-    #return observations, chroms, starts, variants, mutrates, weights
+        # Write the "true" simulated segments
+        with open('simulated_segments.txt', 'w') as out:
+            print('chrom', 'start', 'end', 'length', 'state', sep = '\t', file = out)
+            for (chrom, chrom_start_index, chrom_length_index) in find_runs(chroms):
+                for (state_id, start_index, length_index) in find_runs(path[chrom_start_index:chrom_start_index + chrom_length_index]):
+                    
+                    state = hmm_parameters.state_names[state_id]
+                    
+                    start_index = start_index + chrom_start_index
+                    genome_start = starts[start_index]
+                    genome_length =  length_index * window_size
+                    genome_end = genome_start + genome_length
+
+                    print(chrom, genome_start, genome_end, genome_length, state, sep = '\t', file = out)
+
+
+    weights = np.ones(len(observations))
+    mutrates = np.ones(len(observations))                
+
     return np.array(observations).astype(int), chroms, starts, variants, np.array(mutrates).astype(float), np.array(weights).astype(float)
