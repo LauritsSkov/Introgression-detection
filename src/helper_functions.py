@@ -427,6 +427,9 @@ def convert_to_bases(genotype, both_bases):
 # Check which type of input we are dealing with
 def combined_files(ancestralfiles, vcffiles):
 
+    if len(ancestralfiles) == len(vcffiles) and len(vcffiles) == 1 and ancestralfiles != ['']:
+        return ancestralfiles, vcffiles
+
     # Get ancestral and vcf consensus
     prefix1, postfix1, values1 = get_consensus(vcffiles)
     prefix2, postfix2, values2 = get_consensus(ancestralfiles)
