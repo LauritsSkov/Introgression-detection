@@ -85,7 +85,8 @@ Different modes (you can also see the options for each by writing hmmix make_tes
 > make_test_data        
     -windows            Number of Kb windows to create (defaults to 50,000 per chromosome)
     -chromosomes        Number of chromosomes to simulate (defaults to 2)
-    -nooutfiles         Don't create obs.txt, mutrates.bed, weights.bed, Initialguesses.json (defaults to yes)
+    -nooutfiles         Don't create obs.txt, mutrates.bed, weights.bed, Initialguesses.json, simulated_segments.txt (defaults to yes)
+    -param              markov parameters file (default is human/neanderthal like parameters)
 
 > mutation_rate         
     -outgroup           [required] path to variants found in outgroup
@@ -130,6 +131,7 @@ Different modes (you can also see the options for each by writing hmmix make_tes
     -haploid            Change from using diploid data to haploid data (default is diploid)
     -admixpop           Annotate using vcffile with admixing population (default is none)
     -extrainfo          Add variant position for each SNP (default is off)
+    -viterbi            decode using the viterbi algorithm (default is posterior decoding)
 
 > inhomogeneous                
     -obs                [required] file with observation data
@@ -153,15 +155,15 @@ Here is how we can simulate test data using hmmix. Lets make some test data and 
 
 ```note
 > hmmix make_test_data
-creating 2 chromosomes each with 50000 kb of test data with the following parameters..
-
+> creating 2 chromosomes each with 50000 kb of test data with the following parameters..
+> hmm parameters file: None
 > state_names = ['Human', 'Archaic']
 > starting_probabilities = [0.98, 0.02]
 > transitions = [[1.0, 0.0], [0.02, 0.98]]
 > emissions = [0.04, 0.4]
 ```
 
-This will generate 4 files, obs.txt, weights.bed, mutrates.bed and Initialguesses.json. obs.txt. These are the mutations that are left after removing variants which are found in the outgroup.
+This will generate 5 files, obs.txt, weights.bed, mutrates.bed, simulated_segments.txt and Initialguesses.json. obs.txt. These are the mutations that are left after removing variants which are found in the outgroup.
 
 ```note
 chrom  pos     ancestral_base  genotype
@@ -199,6 +201,32 @@ Initialguesses.json. This is our initial guesses when training the model - note 
   "transitions": [[0.99,0.01],[0.02,0.98]],
   "emissions": [0.03,0.3]
 }
+```
+
+The simulated_segments.txt contains the simulated states which generated the data (you can compare this to the decoded results later and see that it matches).  
+
+```note
+chrom  start     end       length    state
+chr1   0         7235000   7235000   Human
+chr1   7235000   7249000   14000     Archaic
+chr1   7249000   21619000  14370000  Human
+chr1   21619000  21679000  60000     Archaic
+chr1   21679000  26854000  5175000   Human
+chr1   26854000  26941000  87000     Archaic
+chr1   26941000  50000000  23059000  Human
+chr2   0         6794000   6794000   Human
+chr2   6794000   6822000   28000     Archaic
+chr2   6822000   12640000  5818000   Human
+chr2   12640000  12745000  105000    Archaic
+chr2   12745000  15471000  2726000   Human
+chr2   15471000  15540000  69000     Archaic
+chr2   15540000  32625000  17085000  Human
+chr2   32625000  32695000  70000     Archaic
+chr2   32695000  41086000  8391000   Human
+chr2   41086000  41189000  103000    Archaic
+chr2   41189000  49954000  8765000   Human
+chr2   49954000  49973000  19000     Archaic
+chr2   49973000  50000000  27000     Human
 ```
 
 We can find the best fitting parameters using BaumWelsch training. Here is how you use it: - note you can try to ommit the weights and mutrates arguments. Since this is simulated data the mutation is constant across the genome and we can asses the entire genome. Also notice how the parameters approach the parameters the data was generated from (jubii).
@@ -285,7 +313,7 @@ The whole pipeline we will run looks like this. In the following section we will
 NOTE: The outgroup files, mutation rate files, reference genomes, ancestral alleles and callability files and ancestral allele files are now premade!
 They can be downloaded in hg38 and hg19 here: <https://doi.org/10.5281/zenodo.11212339>
 
-But keep reading along if you want to know HOW the files were generated!
+But keep reading along if you want to know HOW the files were generated! Another important thing to note is that hmmix is relying on VCFtools which only support VCF files up to format V4.2 - so if you have VCFfiles in version 4.3 you will need to change this in your header!
 
 ```note
 hmmix create_outgroup -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=outgroup.txt -ancestral=hg19_ancestral/homo_sapiens_ancestor_*.fa -refgenome=hg19_refgenome/*fa
