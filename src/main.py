@@ -1,14 +1,14 @@
 import argparse
 import numpy as np
 
-from hmm_functions import TrainModel, DecodeModel, write_HMM_to_file, read_HMM_parameters_from_file, Write_Decoded_output, inhomogeneous
+from hmm_functions import TrainModel, DecodeModel, write_HMM_to_file, read_HMM_parameters_from_file, Write_Decoded_output, inhomogeneous, DecodeModel_viterbi
 from bcf_vcf import make_out_group, make_ingroup_obs
 from make_test_data import create_test_data
 from make_mutationrate import make_mutation_rate
 from helper_functions import Load_observations_weights_mutrates, handle_individuals_input, handle_infiles, combined_files
 
 
-VERSION = '0.7.0'
+VERSION = '0.7.3'
 
 
 def print_script_usage():
@@ -25,7 +25,8 @@ Different modes (you can also see the options for each by writing hmmix make_tes
 > make_test_data        
     -windows            Number of Kb windows to create (defaults to 50,000 per chromosome)
     -chromosomes        Number of chromosomes to simulate (defaults to 2)
-    -nooutfiles         Don't create obs.txt, mutrates.bed, weights.bed, Initialguesses.json (defaults to yes)
+    -nooutfiles         Don't create obs.txt, mutrates.bed, weights.bed, Initialguesses.json, simulated_segments.txt (defaults to yes)
+    -param              markov parameters file (default is human/neanderthal like parameters)
 
 > mutation_rate         
     -outgroup           [required] path to variants found in outgroup
@@ -70,6 +71,7 @@ Different modes (you can also see the options for each by writing hmmix make_tes
     -haploid            Change from using diploid data to haploid data (default is diploid)
     -admixpop           Annotate using vcffile with admixing population (default is none)
     -extrainfo          Add variant position for each SNP (default is off)
+    -viterbi            decode using the viterbi algorithm (default is posterior decoding)
 
 > inhomogeneous                
     -obs                [required] file with observation data
@@ -101,6 +103,7 @@ def main():
     test_subparser.add_argument("-windows", metavar='',help="Number of Kb windows to create (defaults to 50,000 per chromosome)", type=int, default = 50000)
     test_subparser.add_argument("-chromosomes", metavar='',help="Number of chromosomes to simulate (defaults to 2)", type=int, default = 2)
     test_subparser.add_argument("-nooutfiles",help="Don't create obs.txt, mutrates.bed, weights.bed, Initialguesses.json (defaults to yes)", action='store_false', default = True)
+    test_subparser.add_argument("-param", metavar='',help="markov parameters file (default is human/neanderthal like parameters)", type=str)
 
     # Make outgroup
     outgroup_subparser = subparser.add_parser('create_outgroup', help='Create outgroup information')
@@ -150,6 +153,7 @@ def main():
     decode_subparser.add_argument("-haploid",help="Change from using diploid data to haploid data (default is diploid)", action='store_true', default = False)
     decode_subparser.add_argument("-admixpop",help="Annotate using vcffile with admixing population (default is none)")
     decode_subparser.add_argument("-extrainfo",help="Add archaic information on each SNP", action='store_true', default = False)
+    decode_subparser.add_argument("-viterbi",help="Decode using the Viterbi algorithm", action='store_true', default = False)
 
     # inhomogeneous markov chain
     inhomogen_subparser = subparser.add_parser('inhomogeneous', help='Make inhomogen markov chain')
@@ -175,10 +179,8 @@ def main():
     # Make test data
     # ------------------------------------------------------------------------------------------------------------
     if args.mode == 'make_test_data':
-        create_test_data(data_set_length = args.windows, n_chromosomes = args.chromosomes, write_out_files = args.nooutfiles)
-
-
-
+        create_test_data(data_set_length = args.windows, n_chromosomes = args.chromosomes, write_out_files = args.nooutfiles, parameters_file = args.param)
+        
 
     # Train parameters
     # ------------------------------------------------------------------------------------------------------------
@@ -190,8 +192,8 @@ def main():
         print('-' * 40)
         print(hmm_parameters)
         print(f'> chromosomes to use: {args.chrom}')
-        print('> number of windows:', len(obs), '. Number of snps = ', sum(obs))
-        print('> total callability:', round(np.sum(weights) / len(obs),2) )
+        print(f'> number of windows: {len(obs)}. Number of snps = {sum(obs)}')
+        print(f'> total callability: {np.sum(weights)} bp ({round(np.sum(weights) / len(obs) * 100,2)} %)')
         print('> average mutation rate per bin:', round(np.sum(mutrates * weights) / np.sum(weights), 2) )
         print('> Output is',args.out) 
         print('> Window size is',args.window_size, 'bp') 
@@ -210,20 +212,27 @@ def main():
 
         obs, chroms, starts, variants, mutrates, weights  = Load_observations_weights_mutrates(args.obs, args.weights, args.mutrates, args.window_size, args.haploid, args.chrom)
         hmm_parameters = read_HMM_parameters_from_file(args.param)
-        
+
         print('-' * 40)
         print(hmm_parameters)  
         print(f'> chromosomes to use: {args.chrom}')
-        print('> number of windows:', len(obs), '. Number of snps = ', sum(obs))
-        print('> total callability:', round(np.sum(weights) / len(obs),2) )
+        print(f'> number of windows: {len(obs)}. Number of snps = {sum(obs)}')
+        print(f'> total callability: {np.sum(weights)} bp ({round(np.sum(weights) / len(obs) * 100,2)} %)')
         print('> average mutation rate per bin:', round(np.sum(mutrates * weights) / np.sum(weights), 2) )
         print('> Output prefix is',args.out) 
         print('> Window size is',args.window_size, 'bp') 
-        print('> Haploid',args.haploid) 
+        print('> Haploid',args.haploid)      
+        if args.viterbi:
+            print('> Decode using viterbi algorithm') 
+        else:
+            print('> Decode with posterior decoding') 
         print('-' * 40)
 
         # Find segments and write output
-        segments = DecodeModel(obs, chroms, starts, variants, mutrates, weights, hmm_parameters)
+        if args.viterbi:
+            segments = DecodeModel_viterbi(obs, chroms, starts, variants, mutrates, weights, hmm_parameters)
+        else:
+            segments = DecodeModel(obs, chroms, starts, variants, mutrates, weights, hmm_parameters)
         Write_Decoded_output(args.out, segments, args.obs, args.admixpop, args.extrainfo)
 
     # inhomogeneous markov chain
@@ -236,8 +245,8 @@ def main():
         print('-' * 40)
         print(hmm_parameters)  
         print(f'> chromosomes to use: {args.chrom}')
-        print('> number of windows:', len(obs), '. Number of snps = ', sum(obs))
-        print('> total callability:', round(np.sum(weights) / len(obs),2) )
+        print(f'> number of windows: {len(obs)}. Number of snps = {sum(obs)}')
+        print(f'> total callability: {np.sum(weights)} bp ({round(np.sum(weights) / len(obs) * 100,2)} %)')
         print('> average mutation rate per bin:', round(np.sum(mutrates * weights) / np.sum(weights), 2) )
         print('> Output prefix is',args.out) 
         print('> Window size is',args.window_size, 'bp') 
@@ -277,7 +286,7 @@ def main():
         print(f'> Writing output to:', args.out)
         print('-' * 40)
 
-
+        
         make_out_group(outgroup_individuals, args.weights, vcffiles, args.out, ancestralfiles, refgenomefiles)
 
 
@@ -293,6 +302,7 @@ def main():
         # Get a list of vcffiles and ancestral files and intersect them
         vcffiles = handle_infiles(args.vcf)
         ancestralfiles = handle_infiles(args.ancestral)
+
         ancestralfiles, vcffiles  = combined_files(ancestralfiles, vcffiles)
 
         print('-' * 40)
