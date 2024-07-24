@@ -127,6 +127,9 @@ def forward(probabilities, transitions, init_start):
             forwards_in[t,:], scale_param[t] =  fwd_step(forwards_in[t-1,:], probabilities[t,:], transitions) 
 
     return forwards_in, scale_param
+
+
+
     
 
 @njit
@@ -163,27 +166,25 @@ def TrainBaumWelsch(hmm_parameters, weights, obs, mutrates):
     forward_probs, scales = forward(emissions, hmm_parameters.transitions, hmm_parameters.starting_probabilities)
     backward_probs = backward(emissions, hmm_parameters.transitions, scales)
 
-    # Update emission
-    new_emissions_matrix = np.zeros((n_states))
-    for state in range(n_states):
-        top = np.sum(forward_probs[:, state] * backward_probs[:, state] * obs)
-        bottom = np.sum(forward_probs[:, state] * backward_probs[:, state] * (weights * mutrates) )
-        new_emissions_matrix[state] = top/bottom
-
-
     # Update starting probs
     posterior_probs = forward_probs * backward_probs
     normalize = np.sum(posterior_probs)
     new_starting_probabilities = np.sum(posterior_probs, axis=0)/normalize 
 
+    # Update emission
+    new_emissions_matrix = np.zeros((n_states))
+    for state in range(n_states):
+        top = np.sum(posterior_probs[:,state] * obs)
+        bottom = np.sum(posterior_probs[:,state] * (weights * mutrates) )
+        new_emissions_matrix[state] = top/bottom
 
     # Update Transition probs 
     new_transitions_matrix =  np.zeros((n_states, n_states))
     for state1 in range(n_states):
         for state2 in range(n_states):
-            new_transitions_matrix[state1,state2] = np.sum( forward_probs[:-1,state1]  * hmm_parameters.transitions[state1, state2] * emissions[1:,state2] * backward_probs[1:,state2] / scales[1:] )
+            new_transitions_matrix[state1,state2] = np.sum( forward_probs[:-1,state1]  * backward_probs[1:,state2]  * hmm_parameters.transitions[state1, state2] * emissions[1:,state2]/ scales[1:] )
 
-    new_transitions_matrix /=  new_transitions_matrix.sum(axis=1)[:,np.newaxis]
+    new_transitions_matrix /= new_transitions_matrix.sum(axis=1)[:,np.newaxis]
 
     return HMMParam(hmm_parameters.state_names,new_starting_probabilities, new_transitions_matrix, new_emissions_matrix)
 
@@ -199,7 +200,7 @@ def TrainBaumWelsch(hmm_parameters, weights, obs, mutrates):
 
 
 @njit
-def Simulate_values(n_states, p):
+def Simulate_values(p):
     return np.random.binomial(1, p)
 
 
@@ -207,7 +208,7 @@ def Simulate_values(n_states, p):
 def Simulate_transition(n_states, matrix, current_state):
 
     # prob of statying (can be done with numba so its quick)
-    next_state = Simulate_values(n_states, matrix[current_state])
+    next_state = Simulate_values(matrix[current_state])
     if next_state == 1:
         return current_state
     
@@ -240,11 +241,18 @@ def inhomogeneous(hmm_parameters, weights, obs, mutrates, samples, chroms, start
     # Make and initialise new transition matrix
     new_transition_matrix = np.zeros((number_observations, n_states, n_states))
 
+    # starting probabilities
+    sim_starting_probabilities = np.zeros(n_states)
+    for state in range(n_states):
+        sim_starting_probabilities[state] = hmm_parameters.starting_probabilities[state] * backward_probs[0, state] * emissions[0, state] / scales[0]
+    
     for state in range(n_states):
         for otherstate in range(n_states):
             new_transition_matrix[1:, otherstate, state] = (backward_probs[1:, state] ) / (backward_probs[:-1, otherstate] * scales[1:]) * hmm_parameters.transitions[otherstate, state] * emissions[1:, state]
     
-
+    # with open('transmatrix.txt', 'w') as out:
+    #     for index in new_transition_matrix:
+    #         print(index[0,0], index[0,1], index[1,0], index[1,1], file = out)
 
     segments = []
     for sim_number in range(samples):
@@ -253,7 +261,7 @@ def inhomogeneous(hmm_parameters, weights, obs, mutrates, samples, chroms, start
         sim_path = np.zeros(number_observations, dtype=int)
         
         # set start state
-        current_state = np.random.choice(n_states, p=hmm_parameters.starting_probabilities)
+        current_state = np.random.choice(n_states, p=sim_starting_probabilities)
         sim_path[0] = current_state
 
         CHROMOSOME_BREAKPOINTS = [x for x in find_runs(chroms)]
@@ -321,7 +329,7 @@ def TrainModel(obs, mutrates, weights, hmm_parameters, epsilon = 1e-3, maxiterat
     
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Decode
+# Decode (posterior decoding)
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 def DecodeModel(obs, chroms, starts, variants, mutrates, weights, hmm_parameters):
@@ -366,6 +374,98 @@ def DecodeModel(obs, chroms, starts, variants, mutrates, weights, hmm_parameters
             segments.append([newchrom, genome_start,  genome_end, genome_length, hmm_parameters.state_names[state], mean_prob, snp_counter, ploidity, called_sequence, average_mutation_rate, variants_segment]) 
     
     return segments
+
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Decode (Viterbi)
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+@njit
+def fwd_step_keep_track(alpha_prev, E, trans_mat):
+    
+    # scaling factor
+    n = np.sum((alpha_prev @ trans_mat) * E)
+    
+    results = np.zeros(len(E))
+    back_track_states = np.zeros(len(E))
+
+    for current_s in range(len(E)):
+        for prev_s in range(len(E)):
+            new_prob = alpha_prev[prev_s] * trans_mat[prev_s, current_s] * E[current_s] / n
+
+            if new_prob > results[current_s]:
+                results[current_s] = new_prob
+                back_track_states[current_s] = prev_s
+
+    return results, back_track_states
+
+
+@njit
+def viterbi(probabilities, transitions, init_start):
+    n = len(probabilities)
+    forwards_in = np.zeros( (n, len(init_start)) ) 
+    backtracks = np.zeros( (n, len(init_start)), dtype=np.int32) 
+
+    for t in range(n):
+        if t == 0:
+            forwards_in[t,:] = init_start  * probabilities[t,:]
+            scale_param = np.sum( forwards_in[t,:])
+            forwards_in[t,:] = forwards_in[t,:] / scale_param
+        else:
+            forwards_in[t,:], backtracks[t,:] =  fwd_step_keep_track(forwards_in[t-1,:], probabilities[t,:], transitions) 
+
+    return forwards_in, backtracks
+
+def DecodeModel_viterbi(obs, chroms, starts, variants, mutrates, weights, hmm_parameters):
+
+    # Posterior decode the file
+    emissions = Emission_probs_poisson(hmm_parameters.emissions, obs, weights, mutrates)
+    viterbi_probs, backtracks = viterbi(emissions, hmm_parameters.transitions, hmm_parameters.starting_probabilities)
+    window_size = starts[2] - starts[1]
+    
+    viterbi_path = np.zeros(len(obs), dtype = int)
+    viterbi_path[-1] = np.argmax(viterbi_probs[-1,:])
+    
+    for t in range(len(obs) - 2, 0, -1):
+        viterbi_path[t] = backtracks[t + 1, viterbi_path[t + 1]]
+
+    
+
+    segments = []
+    for (chrom, chrom_start_index, chrom_length_index) in find_runs(chroms):
+
+        # Diploid or haploid
+        if '_hap' in chrom:
+            newchrom, ploidity = chrom.split('_')
+        else:
+            ploidity = 'diploid'
+            newchrom = chrom
+
+        state_with_highest_prob = viterbi_path[chrom_start_index:chrom_start_index + chrom_length_index]
+
+        for (state, start_index, length_index) in find_runs(state_with_highest_prob):
+            
+            start_index = start_index + chrom_start_index
+            end_index = start_index + length_index
+
+            genome_start = starts[start_index]
+            genome_length =  length_index * window_size
+            genome_end = genome_start + genome_length
+
+            called_sequence = int(np.sum(weights[start_index:end_index]) * window_size)
+            average_mutation_rate = round(np.mean(mutrates[start_index:end_index]), 3)
+
+            snp_counter = np.sum(obs[start_index:end_index])
+            mean_prob = 1
+            variants_segment = flatten_list(variants[start_index:end_index])
+
+            segments.append([newchrom, genome_start,  genome_end, genome_length, hmm_parameters.state_names[state], mean_prob, snp_counter, ploidity, called_sequence, average_mutation_rate, variants_segment]) 
+    
+    return segments
+
+
+
+
 
 
 
