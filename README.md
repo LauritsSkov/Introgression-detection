@@ -16,7 +16,7 @@ VCF file containing 4 high coverage archaic genomes (Altai, Vindija and Chagyrsk
 
 <https://zenodo.org/records/7246376> (hg19)
 
-<https://zenodo.org/records/10806726> (hg38)
+<https://zenodo.org/records/13368126> (hg38)
 
 ---
 
@@ -637,7 +637,7 @@ I have uploaded a VCF file containing 4 high coverage archaic genomes (3 Neander
 
 <https://zenodo.org/records/7246376> (hg19 - the one I use in this example)
 
-<https://zenodo.org/records/10806726> (hg38)
+<https://zenodo.org/records/13368126> (hg38)
 
 If you have a vcf from the population that admixed in VCF/BCF format you can write this:
 
@@ -708,26 +708,33 @@ from helper_functions import Load_observations_weights_mutrates
 # Test data from quick tutorial
 # -----------------------------------------------------------------------------
 
+# HMM parameters to simulate from
+true_hmm_params = HMMParam(state_names = ['Human', 'Archaic'], 
+                    starting_probabilities = [0.98, 0.02], 
+                    transitions = [[0.9999,0.0001],[0.02,0.98]], 
+                    emissions = [0.04, 0.4])
+
+
+# Create test data
+obs, chroms, starts, variants, mutrates, weights, simulated_path  = create_test_data(data_set_length = 50000, n_chromosomes = 2, hmm_parameters = true_hmm_params, write_out_files = False)
+
+
 # Initial HMM guess
 initial_hmm_params = HMMParam(state_names = ['Human', 'Archaic'], 
                               starting_probabilities = [0.5, 0.5], 
                               transitions = [[0.99,0.01],[0.02,0.98]], 
                               emissions = [0.03, 0.3]) 
 
-# Create test data
-obs, chroms, starts, variants, mutrates, weights  = create_test_data(50000, write_out_files = False)
 
 # Train model
-hmm_parameters = TrainModel(obs, mutrates, weights, initial_hmm_params)
+trained_hmm_parameters = TrainModel(obs, mutrates, weights, initial_hmm_params)
 
 # Decode model
-segments = DecodeModel(obs, chroms, starts, variants, mutrates, weights, hmm_parameters)
+segments = DecodeModel(obs, chroms, starts, variants, mutrates, weights, trained_hmm_parameters)
 
 for segment_info in segments:
     chrom, genome_start, genome_end, genome_length, state, mean_prob, snp_counter, ploidity, called_sequence, average_mutation_rate, variants = segment_info
     print(chrom, genome_start,  genome_end, genome_length, state, mean_prob, snp_counter, sep = '\t')
-
-
 
 # -----------------------------------------------------------------------------
 # Running on an individual from 1000 genomes
