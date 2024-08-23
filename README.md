@@ -11,7 +11,6 @@
 The outgroup files, mutation rate files, reference genomes, ancestral alleles and callability files and ancestral allele files are now premade!
 
 <https://doi.org/10.5281/zenodo.11212339> (hg19 and hg38)
-Note the old version (<https://doi.org/10.5281/zenodo.10806733>) did not contain the ancestral alleles or reference genome and there was some missing data on the X chromosome.
 
 VCF file containing 4 high coverage archaic genomes (Altai, Vindija and Chagyrskaya Neanderthals and Denisovan) here:
 
