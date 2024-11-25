@@ -1,15 +1,14 @@
 import argparse
 import numpy as np
-
-from hmm_functions import TrainModel, DecodeModel, write_HMM_to_file, read_HMM_parameters_from_file, Write_Decoded_output, inhomogeneous, DecodeModel_viterbi
+import sys
+from hmm_functions import TrainModel, write_HMM_to_file, read_HMM_parameters_from_file, Write_Decoded_output, Calculate_Posterior_probabillities, PMAP_path, Viterbi_path, Hybrid_path, Convert_genome_coordinates, Write_posterior_probs, Make_inhomogeneous_transition_matrix, Simulate_from_transition_matrix, Write_inhomogeneous_transition_matrix, Emission_probs_poisson
 from bcf_vcf import make_out_group, make_ingroup_obs
-from make_test_data import create_test_data
+from make_test_data import simulate_path, write_data
 from make_mutationrate import make_mutation_rate
-from helper_functions import Load_observations_weights_mutrates, handle_individuals_input, handle_infiles, combined_files
+from helper_functions import Load_observations_weights_mutrates, handle_individuals_input, handle_infiles, combined_files, find_runs
+from artemis import Find_best_alpha
 
-
-VERSION = '0.7.3'
-
+VERSION = '0.8.2'
 
 def print_script_usage():
     toprint = f'''
@@ -25,8 +24,9 @@ Different modes (you can also see the options for each by writing hmmix make_tes
 > make_test_data        
     -windows            Number of Kb windows to create (defaults to 50,000 per chromosome)
     -chromosomes        Number of chromosomes to simulate (defaults to 2)
-    -nooutfiles         Don't create obs.txt, mutrates.bed, weights.bed, Initialguesses.json, simulated_segments.txt (defaults to yes)
+    -no_out_files       Don't create obs.txt, mutrates.bed, weights.bed, Initialguesses.json (defaults to yes)
     -param              markov parameters file (default is human/neanderthal like parameters)
+    -seed               Set seed (default is 42)
 
 > mutation_rate         
     -outgroup           [required] path to variants found in outgroup
@@ -72,6 +72,8 @@ Different modes (you can also see the options for each by writing hmmix make_tes
     -admixpop           Annotate using vcffile with admixing population (default is none)
     -extrainfo          Add variant position for each SNP (default is off)
     -viterbi            decode using the viterbi algorithm (default is posterior decoding)
+    -hybrid             decode using the hybrid algorithm. Set value between 0 and 1 where 0=posterior and 1=viterbi
+    -posterior_probs    File location for posterior prob
 
 > inhomogeneous                
     -obs                [required] file with observation data
@@ -85,9 +87,23 @@ Different modes (you can also see the options for each by writing hmmix make_tes
     -samples            Number of simulated paths for the inhomogeneous markov chain (default is 100)
     -admixpop           Annotate using vcffile with admixing population (default is none)
     -extrainfo          Add variant position for each SNP (default is off)
+    -inhomogen_matrix   File location for inhomogeneous transition matrix
+
+> artemis
+    -param              [required] markov parameters file (default is human/neanderthal like parameters)
+    -out_plot           File path for artemis plot - can be pdf or jpg (default is Artemis_plot.pdf)
+    -out                Save alphas, likelihoods and pointwise accuracy to file (default is stdout)
+    -windows            Number of Kb windows to create (defaults to 500,000)
+    -iterations         Number of iterations (defaults to 10)
+    -start              First alpha values to simulate (default is 0)
+    -end                Last alpha values to simulate (default is 1)
+    -steps              Number of alpha values to simulate between start and end (defaults to 101)
+    -seed               Set seed (default is 42)
     '''
 
     return toprint
+
+
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Main
@@ -98,12 +114,13 @@ def main():
 
     subparser = parser.add_subparsers(dest = 'mode')
 
-    # Run test
+    # Make test data
     test_subparser = subparser.add_parser('make_test_data', help='Create test data')
     test_subparser.add_argument("-windows", metavar='',help="Number of Kb windows to create (defaults to 50,000 per chromosome)", type=int, default = 50000)
     test_subparser.add_argument("-chromosomes", metavar='',help="Number of chromosomes to simulate (defaults to 2)", type=int, default = 2)
-    test_subparser.add_argument("-nooutfiles",help="Don't create obs.txt, mutrates.bed, weights.bed, Initialguesses.json (defaults to yes)", action='store_false', default = True)
+    test_subparser.add_argument("-no_out_files",help="Don't create obs.txt, mutrates.bed, weights.bed, Initialguesses.json (defaults to yes)", action='store_false', default = True)
     test_subparser.add_argument("-param", metavar='',help="markov parameters file (default is human/neanderthal like parameters)", type=str)
+    test_subparser.add_argument("-seed", metavar='',help="set seed", type=int, default=42)
 
     # Make outgroup
     outgroup_subparser = subparser.add_parser('create_outgroup', help='Create outgroup information')
@@ -154,6 +171,8 @@ def main():
     decode_subparser.add_argument("-admixpop",help="Annotate using vcffile with admixing population (default is none)")
     decode_subparser.add_argument("-extrainfo",help="Add archaic information on each SNP", action='store_true', default = False)
     decode_subparser.add_argument("-viterbi",help="Decode using the Viterbi algorithm", action='store_true', default = False)
+    decode_subparser.add_argument("-hybrid",help="Decode using the hybrid algorithm. Set value between 0 and 1 where 0=posterior and 1=viterbi", type=float, default = -1)
+    decode_subparser.add_argument("-posterior_probs",help="File location for posterior probs", default = None)
 
     # inhomogeneous markov chain
     inhomogen_subparser = subparser.add_parser('inhomogeneous', help='Make inhomogen markov chain')
@@ -168,19 +187,39 @@ def main():
     inhomogen_subparser.add_argument("-samples",help="Number of paths to sample (default is 100)", type=int, default = 100)
     inhomogen_subparser.add_argument("-admixpop",help="Annotate using vcffile with admixing population (default is none)")
     inhomogen_subparser.add_argument("-extrainfo",help="Add archaic information on each SNP", action='store_true', default = False)
+    inhomogen_subparser.add_argument("-inhomogen_matrix",help="File location for inhomogeneous transition matrix", default = None)
 
-
-
-
-
+    # Find best alpha (artemis plos)
+    artemis_subparser = subparser.add_parser('artemis', help='Finds best alphas and make artemis plots')
+    artemis_subparser.add_argument("-param", metavar='',help="[required] markov parameters file (default is human/neanderthal like parameters)", type=str, required = True)
+    artemis_subparser.add_argument("-out", metavar='',help="Save alphas, likelihoods and pointwise accuracy to file (default is stdout)", default ='/dev/stdout')
+    artemis_subparser.add_argument("-out_plot", metavar='',help="File path for artemis plot - can be pdf or jpg (default is Artemis_plot.pdf)", default = 'Artemis_plot.pdf')
+    artemis_subparser.add_argument("-windows", metavar='',help="Number of Kb windows to create (defaults to 500,000)", type=int, default = 500000)
+    artemis_subparser.add_argument("-iterations",help="Number of iterations", type = int, default = 10)
+    artemis_subparser.add_argument("-start",help="First alpha values to simulate (default is 0)", type=float, default = 0.0)
+    artemis_subparser.add_argument("-end",help="Last alpha values to simulate (default is 1)", type=float, default = 1.0)
+    artemis_subparser.add_argument("-steps",help="Number of steps (values to simulate between start and end)", type=int, default = 101)
+    artemis_subparser.add_argument("-seed", metavar='',help="set seed", type=int, default=42)
 
     args = parser.parse_args()
 
     # Make test data
     # ------------------------------------------------------------------------------------------------------------
     if args.mode == 'make_test_data':
-        create_test_data(data_set_length = args.windows, n_chromosomes = args.chromosomes, write_out_files = args.nooutfiles, parameters_file = args.param)
+
+        print('-' * 40)
+        print(f'> creating {args.chromosomes} chromosomes each with {args.windows} kb of test data with the following parameters..')
+        hmm_parameters = read_HMM_parameters_from_file(args.param)
+        print(f'> hmm parameters file: {args.param}')
+        print(hmm_parameters) 
+        print(f'> Seed is {args.seed}')
+        print('-' * 40)
         
+        obs, mutrates, weights, path = simulate_path(args.windows, args.chromosomes, hmm_parameters, args.seed)
+        
+        if args.no_out_files:
+            write_data(path, obs, args.windows, args.chromosomes, hmm_parameters, args.seed)
+
 
     # Train parameters
     # ------------------------------------------------------------------------------------------------------------
@@ -193,7 +232,7 @@ def main():
         print(hmm_parameters)
         print(f'> chromosomes to use: {args.chrom}')
         print(f'> number of windows: {len(obs)}. Number of snps = {sum(obs)}')
-        print(f'> total callability: {np.sum(weights)} bp ({round(np.sum(weights) / len(obs) * 100,2)} %)')
+        print(f'> total callability: {int(np.sum(weights) * args.window_size)} bp ({round(np.sum(weights) / len(obs) * 100,2)} %)')
         print('> average mutation rate per bin:', round(np.sum(mutrates * weights) / np.sum(weights), 2) )
         print('> Output is',args.out) 
         print('> Window size is',args.window_size, 'bp') 
@@ -204,36 +243,52 @@ def main():
         write_HMM_to_file(hmm_parameters, args.out)
 
 
-
-
     # Decode observations using parameters
     # ------------------------------------------------------------------------------------------------------------
     elif args.mode == 'decode':
 
         obs, chroms, starts, variants, mutrates, weights  = Load_observations_weights_mutrates(args.obs, args.weights, args.mutrates, args.window_size, args.haploid, args.chrom)
         hmm_parameters = read_HMM_parameters_from_file(args.param)
+        CHROMOSOME_BREAKPOINTS = [x for x in find_runs(chroms)]
 
         print('-' * 40)
         print(hmm_parameters)  
         print(f'> chromosomes to use: {args.chrom}')
         print(f'> number of windows: {len(obs)}. Number of snps = {sum(obs)}')
-        print(f'> total callability: {np.sum(weights)} bp ({round(np.sum(weights) / len(obs) * 100,2)} %)')
+        print(f'> total callability: {int(np.sum(weights) * args.window_size)} bp ({round(np.sum(weights) / len(obs) * 100,2)} %)')
         print('> average mutation rate per bin:', round(np.sum(mutrates * weights) / np.sum(weights), 2) )
         print('> Output prefix is',args.out) 
         print('> Window size is',args.window_size, 'bp') 
-        print('> Haploid',args.haploid)      
-        if args.viterbi:
-            print('> Decode using viterbi algorithm') 
-        else:
-            print('> Decode with posterior decoding') 
-        print('-' * 40)
+        print('> Haploid',args.haploid)
 
-        # Find segments and write output
-        if args.viterbi:
-            segments = DecodeModel_viterbi(obs, chroms, starts, variants, mutrates, weights, hmm_parameters)
+        emissions = Emission_probs_poisson(hmm_parameters.emissions, obs, weights, mutrates)
+        posterior_probs = Calculate_Posterior_probabillities(emissions, hmm_parameters)
+
+        if args.hybrid != -1:
+            if 0 <= args.hybrid <= 1:
+                print(f'> Decode using hybrid algorithm with parameter: {args.hybrid}')
+                print('-' * 40) 
+                logged_posterior_probs = np.log(posterior_probs.T)
+                path = Hybrid_path(emissions, hmm_parameters.starting_probabilities, hmm_parameters.transitions, logged_posterior_probs, args.hybrid)
+            else:
+                sys.exit('\n\nERROR! Hybrid parameter must be between 0 and 1\n\n')
         else:
-            segments = DecodeModel(obs, chroms, starts, variants, mutrates, weights, hmm_parameters)
+            if args.viterbi:
+                print('> Decode using viterbi algorithm') 
+                print('-' * 40)
+                path = Viterbi_path(emissions, hmm_parameters)
+            else:
+                print('> Decode with posterior decoding')
+                print('-' * 40) 
+                path = PMAP_path(posterior_probs)
+
+
+        if args.posterior_probs is not None:
+            Write_posterior_probs(chroms, starts, weights, mutrates, posterior_probs, path, variants, hmm_parameters, args.posterior_probs)
+        
+        segments = Convert_genome_coordinates(args.window_size, CHROMOSOME_BREAKPOINTS, starts, variants, posterior_probs, path, hmm_parameters, weights, mutrates, obs)
         Write_Decoded_output(args.out, segments, args.obs, args.admixpop, args.extrainfo)
+
 
     # inhomogeneous markov chain
     # ------------------------------------------------------------------------------------------------------------
@@ -241,12 +296,13 @@ def main():
 
         obs, chroms, starts, variants, mutrates, weights  = Load_observations_weights_mutrates(args.obs, args.weights, args.mutrates, args.window_size, args.haploid, args.chrom)
         hmm_parameters = read_HMM_parameters_from_file(args.param)
+        CHROMOSOME_BREAKPOINTS = [x for x in find_runs(chroms)]
         
         print('-' * 40)
         print(hmm_parameters)  
         print(f'> chromosomes to use: {args.chrom}')
         print(f'> number of windows: {len(obs)}. Number of snps = {sum(obs)}')
-        print(f'> total callability: {np.sum(weights)} bp ({round(np.sum(weights) / len(obs) * 100,2)} %)')
+        print(f'> total callability: {int(np.sum(weights) * args.window_size)} bp ({round(np.sum(weights) / len(obs) * 100,2)} %)')
         print('> average mutation rate per bin:', round(np.sum(mutrates * weights) / np.sum(weights), 2) )
         print('> Output prefix is',args.out) 
         print('> Window size is',args.window_size, 'bp') 
@@ -254,12 +310,26 @@ def main():
         print('-' * 40)
 
         # Find segments and write output
-        segments = inhomogeneous(hmm_parameters, weights, obs, mutrates, args.samples, chroms, starts, variants)
-        Write_Decoded_output(args.out, segments, args.obs, args.admixpop, args.extrainfo)
+        emissions = Emission_probs_poisson(hmm_parameters.emissions, obs, weights, mutrates)   
+        posterior_probs = Calculate_Posterior_probabillities(emissions, hmm_parameters)
+        starting_probabilities, inhom_transition_matrix = Make_inhomogeneous_transition_matrix(emissions, hmm_parameters)
+
+        if args.inhomogen_matrix is not None:
+            Write_inhomogeneous_transition_matrix(chroms, starts, weights, mutrates, variants, hmm_parameters, inhom_transition_matrix, args.inhomogen_matrix)
+
+        for sim_number in range(args.samples):
+            print(f'Running inhomogen markov chain simulation {sim_number + 1}/{args.samples}')
+            path = Simulate_from_transition_matrix(starting_probabilities, inhom_transition_matrix)
+            segments = Convert_genome_coordinates(args.window_size, CHROMOSOME_BREAKPOINTS, starts, variants, posterior_probs, path, hmm_parameters, weights, mutrates, obs)
+            
+            if args.out == '/dev/stdout':
+                output = args.out
+            else:
+                output = f'{args.out}.{sim_number}'
+
+            Write_Decoded_output(output, segments, args.obs, args.admixpop, args.extrainfo)
 
             
-
-
 
     # Create outgroup snps (set of snps to be removed)
     # ------------------------------------------------------------------------------------------------------------
@@ -270,7 +340,7 @@ def main():
 
         # Get a list of vcffiles and ancestral files and intersect them
         vcffiles = handle_infiles(args.vcf)
-        ancestralfiles = handle_infiles( args.ancestral)
+        ancestralfiles = handle_infiles(args.ancestral)
         refgenomefiles = handle_infiles(args.refgenome)
 
         ancestralfiles, vcffiles = combined_files(ancestralfiles, vcffiles)
@@ -286,10 +356,7 @@ def main():
         print(f'> Writing output to:', args.out)
         print('-' * 40)
 
-        
         make_out_group(outgroup_individuals, args.weights, vcffiles, args.out, ancestralfiles, refgenomefiles)
-
-
 
 
     # Create ingroup observations
@@ -316,10 +383,7 @@ def main():
         print(f'> Writing output to file with prefix: {args.out}.<individual>.txt')
         print('-' * 40)
 
-
         make_ingroup_obs(ingroup_individuals, args.weights, vcffiles, args.out, args.outgroup, ancestralfiles)
-
-
 
 
     # Estimate mutation rate
@@ -333,11 +397,27 @@ def main():
         print('-' * 40)
 
         make_mutation_rate(args.outgroup, args.out, args.weights, args.window_size)
+
+
+    # Find best alphas and make artemis plots
+    # ------------------------------------------------------------------------------------------------------------
+    elif args.mode == 'artemis':
+
+        hmm_parameters = read_HMM_parameters_from_file(args.param)
+
+        print('-' * 40)
+        print(hmm_parameters)  
+        print(f'> Save data to {args.out}')
+        print(f'> Save plot to {args.out_plot}')
+        print(f'> Number of windows: {args.windows}')
+        print(f'> Number of iterations: {args.iterations}')
+        print(f'> Test {args.steps} alphas between {args.start} and {args.end}:')
+        print(f'> Seed is {args.seed}')
+        print('-' * 40)
+
+        Find_best_alpha(hmm_parameters, args.windows, args.out, args.out_plot, args.iterations,  args.start, args.end, args.steps, args.seed)
     
     
-
-
-
     # Print usage
     # ------------------------------------------------------------------------------------------------------------
     else:
