@@ -1,111 +1,118 @@
 import numpy as np
+from numba import njit
 
-from hmm_functions import HMMParam, write_HMM_to_file, read_HMM_parameters_from_file
+from hmm_functions import HMMParam, write_HMM_to_file, Simulate_transition
 from helper_functions import find_runs
+
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Make test data
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------
-def create_test_data(data_set_length, n_chromosomes = 2, write_out_files = False, parameters_file = None):
+
+@njit
+def set_seed(value):
+    np.random.seed(value)
+
+
+@njit
+def simulatate_mutation_position(n_mutations):
+    return np.random.choice(1000, n_mutations)
+
+
+@njit
+def simulate_poisson(lam):
+    return np.random.poisson(lam)
+
+
+def simulate_path(data_set_length, n_chromosomes, hmm_parameters, SEED):
     '''Create test data set of size data_set_length. Also create uniform weights and uniform mutation rates'''
     
     # Config
-    np.random.seed(42)
-    window_size = 1000
-    mutation_matrix = {
-        'A': [0, 0.16, 0.68, 0.16],
-        'C': [0.16, 0,0.16, 0.68],
-        'G': [0.68, 0.16, 0, 0.16],
-        'T': [0.16, 0.68, 0.16, 0],
-    }
-    bases = ['A','C','G','T']
-    base_composition = [0.31, 0.19, 0.19, 0.31]
-    CHROMOSOMES = [f'chr{x + 1}' for x in range(n_chromosomes)] 
+    np.random.seed(SEED)
+    set_seed(SEED)
+    
+    total_size = data_set_length * n_chromosomes
 
-
-    # Initialization HMM parameters, prob of staring in states and print parameters to user
-    hmm_parameters = read_HMM_parameters_from_file(parameters_file)
     state_values = [x for x in range(len(hmm_parameters.state_names))]
-    
-    print(f'> creating {len(CHROMOSOMES)} chromosomes each with {data_set_length} kb of test data with the following parameters..')
-    print(f'> hmm parameters file: {parameters_file}')
-    print(hmm_parameters)  
+    n_states = len(state_values)
+    path = np.zeros(total_size, dtype = int)
 
-    # Initialize data
-    observations_for_obsfile = []
-    path = []
-    observations = []
-    chroms = []
-    starts = []
-    variants = []
+    observations = np.zeros(total_size, dtype = int)
+    weights = np.ones(total_size)
+    mutrates = np.ones(total_size)  
 
-    for chrom in CHROMOSOMES:
-        for index in range(data_set_length):
+    for index in range(total_size):
+        
+        # Use prior dist if starting window
+        if index == 0:
+            current_state = np.random.choice(state_values, p=hmm_parameters.starting_probabilities)
+        else:
+            current_state = Simulate_transition(n_states, hmm_parameters.transitions[prevstate,:], prevstate)
 
-            obs_counter = 0
-            variants_list = []
+
+        observations[index] = simulate_poisson(hmm_parameters.emissions[current_state])
+        path[index] = current_state
+        prevstate = current_state
             
-            # Use prior dist if starting window
-            if index == 0:
-                current_state = np.random.choice(state_values, p=hmm_parameters.starting_probabilities)
-            else:
-                current_state = np.random.choice(state_values, p=hmm_parameters.transitions[prevstate] )
+            
+    return observations, mutrates, weights, path
 
-            path.append(current_state)
 
-            n_mutations = np.random.poisson(lam=hmm_parameters.emissions[current_state]) 
-            for mutation in [int(x) for x in np.random.uniform(low=index*window_size, high=index*window_size + window_size, size=n_mutations)]: 
-                ancestral_base = np.random.choice(bases, p=base_composition)
-                derived_base = np.random.choice(bases, p=mutation_matrix[ancestral_base])
-                
-                observations_for_obsfile.append(f'{chrom}\t{mutation}\t{ancestral_base}\t{ancestral_base + derived_base}') 
-                
-                obs_counter += 1
-                variants_list.append(str(mutation))
+def write_data(path, obs, data_set_length, n_chromosomes, hmm_parameters, SEED):
 
-            observations.append(obs_counter)
-            chroms.append(chrom)
-            starts.append(index * window_size)
-            variants.append(','.join(variants_list))
-
-            prevstate = current_state
-
+    # Config
+    np.random.seed(SEED)
+    set_seed(SEED)
     
+    window_size = 1000
+    bases = np.array(['A','C','G','T'])
 
-    if write_out_files:
-        # Make obs file
-        with open('obs.txt','w') as obs_file:
-            print('chrom', 'pos', 'ancestral_base', 'genotype', sep = '\t', file = obs_file)
-            for line in observations_for_obsfile:
-                print(line, file = obs_file)
-
-        # Make weights file and mutation file
-        with open('weights.bed','w') as weights_file, open('mutrates.bed','w') as mutrates_file:
-            for chrom in CHROMOSOMES:
-                print(chrom, 0, data_set_length * window_size, sep = '\t', file = weights_file)
-                print(chrom, 0, data_set_length * window_size, 1, sep = '\t', file = mutrates_file)
-
-        # Make initial guesses
-        initial_guess = HMMParam(['Human', 'Archaic'], [0.5, 0.5], [[0.99,0.01],[0.02,0.98]], [0.03, 0.3]) 
-        write_HMM_to_file(initial_guess, 'Initialguesses.json')
-
-        # Write the "true" simulated segments
-        with open('simulated_segments.txt', 'w') as out:
-            print('chrom', 'start', 'end', 'length', 'state', sep = '\t', file = out)
-            for (chrom, chrom_start_index, chrom_length_index) in find_runs(chroms):
-                for (state_id, start_index, length_index) in find_runs(path[chrom_start_index:chrom_start_index + chrom_length_index]):
-                    
-                    state = hmm_parameters.state_names[state_id]
-                    
-                    start_index = start_index + chrom_start_index
-                    genome_start = starts[start_index]
-                    genome_length =  length_index * window_size
-                    genome_end = genome_start + genome_length
-
-                    print(chrom, genome_start, genome_end, genome_length, state, sep = '\t', file = out)
+    CHROMOSOMES = [f'chr{x + 1}' for x in range(n_chromosomes)] 
+    CHROMOSOME_RUNS = []
+    previous_start = 0
+    for chrom in CHROMOSOMES:
+        CHROMOSOME_RUNS.append([chrom, previous_start, data_set_length])
+        previous_start += data_set_length
 
 
-    weights = np.ones(len(observations))
-    mutrates = np.ones(len(observations))                
 
-    return np.array(observations).astype(int), chroms, starts, variants, np.array(mutrates).astype(float), np.array(weights).astype(float)
+    # Make obs file and true simulated segments
+    with open('obs.txt','w') as obs_file, open('simulated_segments.txt', 'w') as out:
+        print('chrom', 'pos', 'ancestral_base', 'genotype', sep = '\t', file = obs_file)
+        print('chrom', 'start', 'end', 'length', 'state', sep = '\t', file = out)
+
+        for (chrom, chrom_start_index, chrom_length_index) in CHROMOSOME_RUNS:
+            for (state_id, start_index, length_index) in find_runs(path[chrom_start_index:chrom_start_index + chrom_length_index]):
+
+                state = hmm_parameters.state_names[state_id]
+                genome_start = start_index * window_size
+                genome_length =  length_index * window_size
+                genome_end = genome_start + genome_length
+                print(chrom, genome_start, genome_end, genome_length, state, sep = '\t', file = out)
+
+                # write mutations
+                n_mutations_segment = obs[(chrom_start_index + start_index):(chrom_start_index + start_index + length_index)]
+                for index, n_mutations in enumerate(n_mutations_segment):
+
+                    if n_mutations == 0:
+                        continue
+
+                    for random_int in simulatate_mutation_position(n_mutations):
+                        mutation = (start_index + index) * window_size + random_int
+                        ancestral_base, derived_base = np.random.choice(bases, 2, replace = False)
+                        
+                        print(chrom, mutation, ancestral_base, ancestral_base + derived_base, sep = '\t', file = obs_file)
+
+    # Make weights file and mutation file
+    with open('weights.bed','w') as weights_file, open('mutrates.bed','w') as mutrates_file:
+        for chrom in CHROMOSOMES:
+            print(chrom, 0, data_set_length * window_size, sep = '\t', file = weights_file)
+            print(chrom, 0, data_set_length * window_size, 1, sep = '\t', file = mutrates_file)
+
+    # Make initial guesses
+    initial_guess = HMMParam(['Human', 'Archaic'], [0.5, 0.5], [[0.99,0.01],[0.02,0.98]], [0.03, 0.3]) 
+    write_HMM_to_file(initial_guess, 'Initialguesses.json')
+
+                  
+    return 
+
