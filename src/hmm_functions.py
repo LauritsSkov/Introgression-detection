@@ -289,7 +289,7 @@ def Viterbi_path(emissions, hmm_parameters):
     # backtracking
     viterbi_path = np.zeros(n_obs, dtype = int)
     viterbi_path[-1] = np.argmax(viterbi_probs[-1,:])
-    for t in range(n_obs - 2, 0, -1):
+    for t in range(n_obs - 2, -1, -1):
         viterbi_path[t] = backtracks[t + 1, viterbi_path[t + 1]]
 
     return viterbi_path
@@ -319,7 +319,7 @@ def Hybrid_path(emissions, starting_probs, trans_matrix, logged_posterior_probab
     # backtracking
     path = np.zeros(n_obs, dtype = np.int32)
     path[-1] = np.argmax(delta[-1,:])    
-    for i in range(n_obs - 2, 0, -1):
+    for i in range(n_obs - 2, -1, -1):
         path[i] = psi[i, path[i + 1]]
     
     return path
