@@ -1,4 +1,4 @@
-# Introgression detection
+# Introgression detection (hmmix)
 
 ## Contact
 
