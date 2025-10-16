@@ -1,4 +1,4 @@
-# Introgression detection (hmmix)
+# Introgression detection
 
 ## Contact
 
@@ -22,6 +22,13 @@ VCF file containing 4 high coverage archaic genomes (Altai, Vindija and Chagyrsk
 
 <https://zenodo.org/records/13368126> (hg38)
 
+Other github pages to help you investigate how different two states actually are and how large your outgroup should be depending on the demography.
+
+<https://github.com/LauritsSkov/SimulateDemography> (investigate how much your coalescence time distributions overlap)
+
+<https://github.com/LauritsSkov/Determine_outgroup_size> (investigate how good your are at removing variants from the common ancestor)
+
+
 ---
 
 If you are working with archaic introgression into present-day humans of non-African ancestry you can use these files and skip the following steps:
@@ -41,7 +48,7 @@ These are the scripts needed to infere archaic introgression in modern populatio
       - [Decoding](#decoding)
       - [Phased data](#training-and-decoding-with-phased-data)
       - [Annotate](#annotate-with-known-admixing-population)
-5. [Run in python](#annotate-with-known-admixing-population)
+
 
 ---
 
@@ -76,7 +83,7 @@ The method is now published in PlosGenetics and can be found here: [Detecting ar
 ## Usage
 
 ```note
-Script for identifying introgressed archaic segments
+Script for identifying introgressed archaic segments (version: 0.8.8)
 
 > Turorial:
 hmmix make_test_data 
@@ -88,8 +95,9 @@ Different modes (you can also see the options for each by writing hmmix make_tes
 > make_test_data        
     -windows            Number of Kb windows to create (defaults to 50,000 per chromosome)
     -chromosomes        Number of chromosomes to simulate (defaults to 2)
-    -nooutfiles         Don't create obs.txt, mutrates.bed, weights.bed, Initialguesses.json, simulated_segments.txt (defaults to yes)
+    -no_out_files       Don't create obs.txt, mutrates.bed, weights.bed, Initialguesses.json (defaults to yes)
     -param              markov parameters file (default is human/neanderthal like parameters)
+    -seed               Set seed (default is 42)
 
 > mutation_rate         
     -outgroup           [required] path to variants found in outgroup
@@ -122,6 +130,8 @@ Different modes (you can also see the options for each by writing hmmix make_tes
     -out                outputfile (default is a file named trained.json)
     -window_size        size of bins (default is 1000 bp)
     -haploid            Change from using diploid data to haploid data (default is diploid)
+    -epsilon            Minimum change in log-likelihood for model convergence (default is 1e-3)
+    -max_iterations     Maximum number of iterations before convergence (default is 1000)
 
 > decode                
     -obs                [required] file with observation data
@@ -135,6 +145,8 @@ Different modes (you can also see the options for each by writing hmmix make_tes
     -admixpop           Annotate using vcffile with admixing population (default is none)
     -extrainfo          Add variant position for each SNP (default is off)
     -viterbi            decode using the viterbi algorithm (default is posterior decoding)
+    -hybrid             decode using the hybrid algorithm. Set value between 0 and 1 where 0=posterior and 1=viterbi
+    -posterior_probs    File location for posterior probabilities
 
 > inhomogeneous                
     -obs                [required] file with observation data
@@ -148,6 +160,19 @@ Different modes (you can also see the options for each by writing hmmix make_tes
     -samples            Number of simulated paths for the inhomogeneous markov chain (default is 100)
     -admixpop           Annotate using vcffile with admixing population (default is none)
     -extrainfo          Add variant position for each SNP (default is off)
+    -inhomogen_matrix   File location for inhomogeneous transition matrix
+
+> artemis
+    -param              [required] markov parameters file (default is human/neanderthal like parameters)
+    -out_plot           File path for artemis plot - can be pdf or jpg (default is Artemis_plot.pdf)
+    -out                Save alphas, likelihoods and pointwise accuracy to file (default is stdout)
+    -windows            Number of Kb windows to create (defaults to 500,000)
+    -iterations         Number of iterations (defaults to 10)
+    -start              First alpha values to simulate (default is 0)
+    -end                Last alpha values to simulate (default is 1)
+    -steps              Number of alpha values to simulate between start and end (defaults to 101)
+    -seed               Set seed (default is 42)
+
 ```
 
 ---
@@ -370,8 +395,12 @@ For this example we will use all individuals from 'YRI','MSL' and 'ESN' as outgr
 
 ### Finding snps which are derived in the outgroup
 
-First we need to find a set of variants found in the outgroup. We can use the wildcard character to loop through all bcf files. It is best if you have files with the ancestral alleles (in FASTA format) and the reference genome (in FASTA format) but the program will run without.
+First we need to find a set of variants found in the outgroup. We can use the wildcard character to loop through all files. There are three ways to run this module.
 
+
+1) Providing vcf/bcffile - The program will only flag variants which are polymorphic in the outgroup
+2) Provide vcf/bcffile + FASTA file with ancestral alleles. This will allow hmmix to also use fixed sites (because we know what the ancestral allele is)
+3) Provide vcf/bcffile + FASTA file with ancestral alleles + FASTA with reference genome. It is best if you have files with the ancestral alleles (in FASTA format) and the reference genome (in FASTA format) but the program will run without.
 Something to note is that if you use an outgroup vcffile (like 1000 genomes) and an ingroup vcf file from a different dataset (like SGDP) there is an edge case which could occur. There could be recurrent mutations where every individual in 1000 genome has the derived variant and one individual in SGDP where the derived variant has mutated back to the ancestral allele. This means that this position will not be present in the outgroup file. However if a recurrent mutation occurs it will look like multiple individuals in the ingroup file have the mutation. This does not happen often but that is why I recommend having files with the ancestral allele and reference genome information.
 
 ```note
@@ -440,7 +469,8 @@ We can use the number of variants in the outgroup to estimate the substitution r
 
 ### Find a set of variants which are not derived in the outgroup
 
-Keep variants that are not found to be derived in the outgroup for each individual in ingroup. You can also speficy a single individual or a comma separated list of individuals.
+Keep variants that are not found to be derived in the outgroup for each individual in ingroup. You can also speficy a single individual or a comma separated list of individuals. As before the ancestral files are not required but a good thing to add. If they are not added then hmmix will only consider heterozygous sites and use the reference allele as the ancestral. 
+
 
 ```note
 (took 20 min) > hmmix create_ingroup  -ind=individuals.json -vcf=*.bcf -weights=strickmask.bed -out=obs -outgroup=outgroup.txt -ancestral=hg19_ancestral/homo_sapiens_ancestor_*.fa
