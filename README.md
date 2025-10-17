@@ -565,6 +565,7 @@ iteration  loglikelihood  start1  start2  emis1   emis2   trans1_1  trans2_2
 > Output prefix is /dev/stdout
 > Window size is 1000 bp
 > Haploid False
+> Decode with posterior decoding
 ----------------------------------------
 chrom  start    end      length   state    mean_prob  snps
 1      0        2988000  2988000  Human    0.9843     91
@@ -632,6 +633,7 @@ Below I am only showing the first archaic segments on chromosome 1 for each hapl
 > Output prefix is /dev/stdout
 > Window size is 1000 bp
 > Haploid True
+> Decode with posterior decoding
 ----------------------------------------
 hap1
 chrom  start    end      length  state    mean_prob  snps
@@ -681,6 +683,7 @@ If you have a vcf from the population that admixed in VCF/BCF format you can wri
 > Output prefix is /dev/stdout
 > Window size is 1000 bp
 > Haploid False
+> Decode with posterior decoding
 ----------------------------------------
 bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_9.bcf
 bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_19.bcf
@@ -717,6 +720,54 @@ chrom  start     end       length  state    mean_prob  snps  admixpopvariants  A
 ```
 
 For the first segment there are 6 derived snps. Of these snps 4 are shared with Altai,Vindija, Denisova and Chagyrskaya. Only 1 is shared with Denisova so this segment likeli introgressed from Neanderthals
+
+You can also add the option "-extrainfo" when you decode. This add additional lines with the number of called bases in the segments, average mutation rate AND a list of all derived snps on the segment and which archaic genomes and which archaic genomes they are shared with separated by commas:
+
+```note
+> hmmix decode -extrainfo -obs=obs.HG00096.txt -weights=strickmask.bed -mutrates=mutationrate.bed -param=trained.HG00096.json -admixpop=archaicvar/*bcf
+----------------------------------------
+> state_names = ['Human', 'Archaic']
+> starting_probabilities = [0.954, 0.046]
+> transitions = [[0.999, 0.001], [0.023, 0.977]]
+> emissions = [0.044, 0.372]
+> chromosomes to use: All
+> number of windows: 3034097. Number of snps = 129803
+> total callability: 2178532324 bp (71.8 %)
+> average mutation rate per bin: 1.0
+> Output prefix is /dev/stdout
+> Window size is 1000 bp
+> Haploid False
+> Decode with posterior decoding
+----------------------------------------
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_9.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_19.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_7.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_21.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_20.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_15.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_10.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_3.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_17.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_6.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_X.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_16.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_1.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_18.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_14.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_4.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_2.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_22.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_5.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_8.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_11.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_12.bcf
+bcftools view -a -R obs.HG00096.txttemp archaicvar/highcov_ind_13.bcf
+chrom	start	end	length	state	mean_prob	snps	admixpopvariants	AltaiNeandertal	Vindija33.19	Denisova	Chagyrskaya-Phalanx	called_sequence	mutationrate	variants	DAV_variants
+1	2988000	2997000	9000	Archaic	0.76267	6	4	4	4	1	4	8080	1.36	2989271,2989543,2991933,2994540,2995262,2996556	none,AltaiNeandertal|Vindija33.19|Chagyrskaya-Phalanx,none,AltaiNeandertal|Vindija33.19|Chagyrskaya-Phalanx,AltaiNeandertal|Vindija33.19|Chagyrskaya-Phalanx,AltaiNeandertal|Vindija33.19|Denisova|Chagyrskaya-Phalanx
+
+```
+
+In the example above I am just showing the first archaic line for clarity. We can see that the first SNP which is at position 2989271 is not shared with any of the archaic reference genomes while the SNP at postion 2989543 is shared with Altai, Vindija and Chagyrskaya.
 
 ---
 
